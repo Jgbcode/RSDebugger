@@ -1,0 +1,7 @@
+name: RSDB
+version: 0
+main: com.gmail.redstonebunny.rsdb.RSDB
+author: BunnyInc
+commands:
+    rsdb:
+        description: Debugs sequential redstone circuits.
