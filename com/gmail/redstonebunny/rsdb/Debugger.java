@@ -5,39 +5,30 @@ import java.util.HashMap;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 
-import com.gmail.redstonebunny.rsdb.script.Clock;
-import com.gmail.redstonebunny.rsdb.script.Reset;
-import com.gmail.redstonebunny.rsdb.script.Watchpoint;
+import com.gmail.redstonebunny.rsdb.script.Parser;
+import com.gmail.redstonebunny.rsdb.variables.Clock;
+import com.gmail.redstonebunny.rsdb.variables.Reset;
+import com.gmail.redstonebunny.rsdb.variables.Variable;
+import com.gmail.redstonebunny.rsdb.variables.Watchpoint;
 
 public class Debugger {
 	private Player p;
 	private RSDB rsdb;
-	private Clock clock;
-	private Reset reset;
-	private HashMap<String, Watchpoint> watchpoints;
+	private HashMap<String, Variable> variables;
 	
 	public Debugger(Player player, RSDB rsdb) {
 		this.p = player;
 		this.rsdb = rsdb;
-		this.watchpoints = new HashMap<String, Watchpoint>();
+		this.variables = new HashMap<String, Variable>();
+		variables.put("#PIPE_SIZE", new Variable("#PIPE_SIZE", 10));
+		variables.put("#CLOCK", null);
+		variables.put("#RESET", null);
 		player.sendMessage(RSDB.successPrefix + "Successfully created a new debugger.");
 	}
 	
 	public void processCommand(String args[]) {
 		if(args[0].equalsIgnoreCase("watch")) {
-			if(args.length == 2) {
-				Watchpoint w = watchpoints.get(args[1]);
-				if(w != null) {
-					w.appendSensors(p);
-				} else {
-					w = Watchpoint.createWatchpoint(args[1], p);
-					if(w != null)
-						watchpoints.put(args[1], w);
-				}
-					
-			} else {
-				p.sendMessage(RSDB.prefix + "Invalid format. Use \"/rsdb watch <watchpoint_name>\".");
-			}
+			commandWatch(args);
 		} else if(args[0].equalsIgnoreCase("print")) {
 			commandPrint(args);
 		} else if(args[0].equalsIgnoreCase("delete")) {
@@ -54,13 +45,33 @@ public class Debugger {
 		}
 	}
 	
+	private void commandWatch(String args[]) {
+		if(args.length == 2) {
+			Variable w = variables.get(args[1]);
+			if(w != null && !(w instanceof Watchpoint))
+				p.sendMessage(RSDB.prefix + args[1] + " is not a watchpoint.");
+			
+			if(w != null) {
+				((Watchpoint)w).appendSensors(p);
+			} else {
+				w = Watchpoint.createWatchpoint(args[1], p, variables.get("#PIPE_SIZE"));
+				if(w != null)
+					variables.put(args[1], w);
+			}	
+		} else {
+			p.sendMessage(RSDB.prefix + "Invalid format. Use \"/rsdb watch <watchpoint_name>\".");
+		}
+	}
+	
 	private void commandReset(String args[]) {
 		if(args.length == 1) {
-			if(reset != null)
-				reset.pulse(5);
+			if(variables.get("#RESET") != null)
+				((Reset)variables.get("#RESET")).pulse(5);
 			
-			if(clock != null)
-				clock.resetCount();
+			for(Variable v : variables.values()) {
+				if(v != null)
+					v.reset();
+			}	
 		} 
 		else {
 			p.sendMessage(RSDB.prefix + "Invalid format. Use \"/rsdb reset\".");
@@ -68,16 +79,16 @@ public class Debugger {
 	}
 	
 	private void commandStep(String args[]) {
+		if(variables.get("#CLOCK") == null) {
+			p.sendMessage(RSDB.prefix + "You cannot use the step command without creating a clock.");
+			return;
+		}
+		
 		if(args.length == 1) {
-			if(clock != null) {
-				clock.pulse(5);
-			} 
-			else {
-				p.sendMessage(RSDB.prefix + "You cannot use the step command without creating a clock.");
-			}
+			((Clock)variables.get("#CLOCK")).pulse(5);
 		} else if(args.length == 2) {
-			if(contains(args, "--toggle")) {
-				clock.toggle();
+			if(args[1].equals("--toggle")) {	
+				((Clock)variables.get("#CLOCK")).toggle();
 			} 
 			else {
 				p.sendMessage(RSDB.prefix + "Invalid format: Use \"/rsdb step\".");
@@ -90,84 +101,90 @@ public class Debugger {
 	
 	private void commandSet(String args[]) {
 		if(args.length == 2) {
-			if(args[1].equalsIgnoreCase("clock")) {
-				Clock tmp = Clock.createClock(rsdb, p);
+			if(args[1].equals("#CLOCK")) {
+				Clock tmp = Clock.createClock(rsdb, p, variables.get("#PIPE_SIZE"), variables);
 				if(tmp != null)
-					clock = tmp;
-			} else if(args[1].equalsIgnoreCase("reset")) {
-				Reset tmp = Reset.createReset(rsdb, p);
+					 variables.put("#CLOCK", tmp);
+			} else if(args[1].equals("#RESET")) {
+				Reset tmp = Reset.createReset(rsdb, p, variables.get("#PIPE_SIZE"));
 				if(tmp != null)
-					reset = tmp;
+					variables.put("#RESET", tmp);
 			} 
 			else {
 				p.sendMessage(RSDB.prefix + "Unknown component: \"" + args[1] + "\".");
 			}
-		} 
+		} else if(args.length == 3 && args[1].startsWith("$")) {
+			Integer tmp = Parser.getValue(args[2], variables);
+			if(tmp == null) {
+				p.sendMessage(RSDB.prefix + "Failed to set variable: Illegal value.");
+			}
+			
+			 	if(args[1].charAt(1) == '#') {
+					if(variables.containsKey(args[1].substring(1)) && variables.get(args[1].substring(1)) != null) {
+						variables.get(args[1].substring(1)).setValue(tmp);
+					}
+					else {
+						p.sendMessage(RSDB.prefix + "Failed to set variable: System variable does not exist.");
+						return;
+					}
+				} else {
+					if(variables.containsKey(args[1].substring(1))) {
+						variables.get(args[1].substring(1)).setValue(tmp);
+					} else if(Variable.isLegalVarName(args[1].substring(1))) {
+						variables.put(args[1].substring(1), new Variable(args[1].substring(1), variables.get("#SIZE")));
+					}
+					else {
+						p.sendMessage(RSDB.prefix + "Failed to set variable: Variable name contains illegal characters.");
+						return;
+					}
+				}
+		}
 		else {
-			p.sendMessage(RSDB.prefix + "Invalid format. Use \"/rsdb set <component_name>\".");
+			p.sendMessage(RSDB.prefix + "Invalid format. Use \"/rsdb set <variable_name> <optional_value>\".");
 		}
 	}
 	
 	private void commandDelete(String args[]) {
 		if(args.length == 2) {
-			if(watchpoints.remove(args[1]) == null) {
-				p.sendMessage(RSDB.prefix + "Could not find watchpoint \"" + args[1] + "\".");
+			if(args[1].equals("#PIPE_SIZE")) {
+				p.sendMessage(RSDB.prefix + "Deleting #PIPE_SIZE will corrupt your debugger. This action is disabled.");
+			} else if(variables.get(args[1]) == null) {
+				p.sendMessage(RSDB.prefix + "Could not find variable \"" + args[1] + "\".");
 			} 
 			else {
-				p.sendMessage(RSDB.successPrefix + "Successfully removed watchpoint \"" + args[1] + "\"");
+				variables.put(args[1], null);
+				p.sendMessage(RSDB.successPrefix + "Successfully removed variable \"" + args[1] + "\"");
 			}
 		} 
 		else {
-			p.sendMessage(RSDB.prefix + "Invalid format. Use \"/rsdb delete <watchpoint_name>\".");
+			p.sendMessage(RSDB.prefix + "Invalid format. Use \"/rsdb delete <variable_name>\".");
 		}
 	}
 	
 	private void commandPrint(String args[]) {
 		if(args.length == 1) {
-			if(watchpoints.size() == 0)
-				p.sendMessage(RSDB.prefix + "The current debugger does not have any watchpoints to print.");
-			for(Watchpoint wp : watchpoints.values()) {
-				wp.printValue(p);
+			for(Variable v : variables.values()) {
+				if(v == null)
+					continue;
+				v.printValue(p);
 			}
 		} else if(args.length == 2) {
-			if(args[1].startsWith("$")) {
-				if(args[1].charAt(1) == '#') {
-					String str = args[1].substring(2);
-					if(str.equalsIgnoreCase("clock")) {
-						clock.printCount(p);
-					} 
-					else {
-						p.sendMessage(RSDB.prefix + "Could not find variable \"" + args[1] + "\".");
-					}
-				} 
+			if(!variables.containsKey(args[1])) {
+				Integer value = Parser.evaluateExpression(args[1], variables);
+				
+				if(value != null) {
+					p.sendMessage(RSDB.prefix + ChatColor.GOLD + args[1] + ChatColor.GRAY + " = " + value + " <-> " + Integer.toBinaryString(value) + "b");
+				}
 				else {
-					Watchpoint wp = watchpoints.get(args[1].substring(1));
-					if(wp == null) {
-						p.sendMessage(RSDB.prefix + "Could not find variable \"" + args[1] + "\".");
-					} 
-					else {
-						wp.printValue(p);
-					}
+					p.sendMessage(RSDB.prefix + "Could not find variable \"" + args[1] + "\".");
 				}
 			} 
 			else {
-				if(args[1].startsWith("#")) {
-					String str = args[1].substring(1);
-					if(str.equalsIgnoreCase("clock") && clock != null) {
-						clock.print();
-					} 
-					else {
-						p.sendMessage(RSDB.prefix + "Could not find variable \"" + args[1] + "\".");
-					}
-				} 
+				if(variables.get(args[1]) != null) {
+					variables.get(args[1]).printLocation(p);
+				}
 				else {
-					Watchpoint wp = watchpoints.get(args[1]);
-					if(wp == null) {
-						p.sendMessage(RSDB.prefix + "Could not find variable \"" + args[1] + "\".");
-					} 
-					else {
-						wp.printBitLocations(p);
-					}
+					p.sendMessage(RSDB.prefix + "Could not find variable \"" + args[1] + "\".");
 				}
 			}
 		} 
@@ -216,22 +233,9 @@ public class Debugger {
 		} else if(args[1].equalsIgnoreCase("set")) {
 			if(args.length == 2) {
 				p.sendMessage(
-						RSDB.prefix + "Use the command \"/rsdb set <component_name>\" to set a component.\nComponents which can be set: " +
-						"clock (/rsdb help set clock), reset (/rsdb help set reset)"
+						RSDB.prefix + "Use the command \"/rsdb set <component_name>\" to set a components value."
 				);
-			} else if(args.length == 3) {
-				if(args[2].equalsIgnoreCase("clock")) {
-					p.sendMessage(
-							RSDB.prefix + "Use the command \"/rsdb set clock\" to create a clock. The clock is created at the location of the players worldedit " +
-							"selection. The selction must be a 1 x 1 x 1 block of glass which touches your clock wire.  The clock variable is stored in \"#CLOCK\"."
-					);
-				} else if(args[2].equalsIgnoreCase("reset")) {
-					
-				} 
-				else {
-					p.sendMessage(RSDB.prefix + "Unknow help set command.");
-				}
-			} 
+			}
 			else {
 				p.sendMessage(RSDB.prefix + "Unknow help set command.");
 			}
@@ -244,14 +248,5 @@ public class Debugger {
 		else {
 			p.sendMessage(RSDB.prefix + "Unknown help command.");
 		}
-	}
-	
-	private boolean contains(String args[], String str) {
-		for(String s : args) {
-			if(str.equalsIgnoreCase(s))
-				return true;
-		}
-		
-		return false;
 	}
 }
