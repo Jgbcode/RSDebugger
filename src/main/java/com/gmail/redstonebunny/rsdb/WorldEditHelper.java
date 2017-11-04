@@ -7,8 +7,13 @@ import com.sk89q.worldedit.bukkit.WorldEditPlugin;
 import com.sk89q.worldedit.bukkit.selections.CuboidSelection;
 import com.sk89q.worldedit.bukkit.selections.Selection;
 
+/*
+ * 	WorldEditHelper class - contains many static methods relating to worldedit
+ */
+
 public class WorldEditHelper
 {
+	// Enum for players look direction
 	public enum Direction {
 		SOUTH, WEST, NORTH, EAST
 	}
@@ -19,10 +24,19 @@ public class WorldEditHelper
 	// WEST = -x
 	// UP = +y
 	// DOWN = -y
+	// Enum for one dimensional selection directions
 	public enum SelectionDirection {
 		X, Y, Z, INVALID
 	}
 	
+	/*
+	 * 	Parameters:
+	 * 		Selection s - the players selection
+	 * 
+	 * 	Returns:
+	 * 		SelectionDirection indicating the direction of the selection. 
+	 * 		If the selection is not one dimensional SelectionDirection.INVALID is returned.
+	 */
 	public static SelectionDirection getSelectionDirection(Selection s) {
 		int w = s.getWidth();
 		int l = s.getLength();
@@ -38,6 +52,14 @@ public class WorldEditHelper
 		return SelectionDirection.INVALID;
 	}
 	
+	/*
+	 * 	Parameters:
+	 * 		Player player - the player whose direction is to be returned
+	 * 
+	 * 	Returns:
+	 * 		Direction indicating the direction the player is facing. 
+	 * 		Returns invalid direction if the player is directly inbetween two directions.
+	 */
 	public static Direction getPlayerDirection(Player player) {
 		float direction = (player.getLocation().getYaw() % 360) < 0 ? player.getLocation().getYaw() + 360 : player.getLocation().getYaw();
 
@@ -64,40 +86,87 @@ public class WorldEditHelper
 		}
 	}
 	
+	/*
+	 * 	Parameters:
+	 * 		Player player - the player to be tested if they are facing up
+	 * 
+	 * 	Returns:
+	 * 		boolean that is true if the player is looking up and false if they are looking down
+	 */
 	public static boolean isFacingUp(Player player) {
 		return player.getLocation().getPitch() < 0;
 	}
 	
+	/*
+	 * 	Returns:
+	 * 		True if worldedit is installed
+	 */
 	public static boolean isWorldEditInstalled()
 	{
 		return getWE() != null;
 	}
 
+	/*
+	 * 	Returns:
+	 * 		True if worldedit is enabled
+	 */
 	public static boolean isWorldEditEnabled()
 	{
 		return Bukkit.getServer().getPluginManager().isPluginEnabled("WorldEdit");
 	}
 
+	/*
+	 * 	Returns:
+	 * 		WorldEditPlugin instance
+	 */
 	private static WorldEditPlugin getWE()
 	{
 		return (WorldEditPlugin) Bukkit.getServer().getPluginManager().getPlugin("WorldEdit");
 	}
 
+	/*
+	 * 	Parameters:
+	 * 		Player player - the player to check
+	 * 
+	 * 	Returns:
+	 * 		True if the player has made a selection
+	 */
 	public static boolean hasSelection(Player player)
 	{
 		return getSelection(player) != null;
 	}
 
+	/*
+	 * 	Parameters:
+	 * 		Player player - the player to check
+	 * 
+	 * 	Returns:
+	 * 		True if the player is in the same world has his selection
+	 */
 	public static boolean isCorrectWorld(Player player)
 	{
 		return getWE().getSelection(player).getWorld().equals(player.getWorld());
 	}
 
+	/*
+	 * 	Parameters:
+	 * 		Player player - the player to check
+	 * 
+	 * 	Returns:
+	 * 		True if the player's selection is a cuboid
+	 */
 	public static boolean isCubicSelection(Player player)
 	{
 		return getSelection(player) instanceof CuboidSelection;
 	}
 
+	/*
+	 * 	Parameters:
+	 * 		Player player - the player to check
+	 * 
+	 * 	Returns:
+	 * 		The players selection
+	 */
 	public static Selection getSelection(Player player)
 	{
 		if (!isWorldEditEnabled())

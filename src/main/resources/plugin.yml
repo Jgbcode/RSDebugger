@@ -1,5 +1,5 @@
-name: RSDB
-version: 0
+name: RSDebugger
+version: ${version}
 main: com.gmail.redstonebunny.rsdb.RSDB
 author: BunnyInc
 commands:

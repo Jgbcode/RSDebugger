@@ -11,12 +11,27 @@ import fr.minuskube.pastee.data.Section;
 import fr.minuskube.pastee.response.PasteResponse;
 import fr.minuskube.pastee.response.SubmitResponse;
 
+/*
+ * 	ScriptInterface class - interfaces between the script object and pastee
+ */
+
 public class ScriptInterface {
+	// JPastee object to connect to pastee
 	private static JPastee pastee;
+	
+	// Prefixes
 	public static final String prefix = ChatColor.DARK_RED + "[" + ChatColor.DARK_PURPLE + "SCRIPT" + ChatColor.DARK_RED +"] " + ChatColor.GRAY;
 	public static final String successPrefix = prefix + ChatColor.GREEN;
 	public static final String errorPrefix = prefix + ChatColor.RED;
 	
+	/*
+	 * 	Parameters:
+	 * 		String script - the script
+	 * 		Player p - the player who owns this script
+	 * 
+	 * 	Description:
+	 * 		Uploads this script to pastee and prints the link to the player
+	 */
 	public static void sendScript(String script, Player p) {
 		if(pastee == null)
 			pastee = new JPastee("uYS1EZBouiieRKef0ksf6GLO6al5l1mQ9qNo2K2jq");
@@ -35,6 +50,14 @@ public class ScriptInterface {
 		}
 	}
 	
+	/*
+	 * 	Parameters:
+	 * 		String url - the url of the script
+	 * 		Player p - the player who owns the script
+	 * 
+	 * 	Description:
+	 * 		Fetches and returns the script or null if the script cannot be fetched
+	 */
 	public static String getScript(String url, Player p) {
 		if(pastee == null)
 			pastee = new JPastee("uYS1EZBouiieRKef0ksf6GLO6al5l1mQ9qNo2K2jq");

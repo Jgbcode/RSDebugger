@@ -11,21 +11,27 @@ import com.gmail.redstonebunny.rsdb.RSDB;
 import com.gmail.redstonebunny.rsdb.WorldEditHelper;
 import com.sk89q.worldedit.bukkit.selections.Selection;
 
+/*
+ * 	Watchpoint class - observes redstone signals
+ */
+
 public class Watchpoint extends Variable{
-	private String prefix;
+	// The player who created this watchpoint
 	private Player p;
 	
+	// Enum to indicate the direction of a selection
 	private enum SelectionStatus {
 		POSITIVE, NEGATIVE, FAILURE
 	}
 	
 	/*
-	 * 		Parameters:
-	 * 			String name - the name of the watchpoint to be created
-	 * 			Player p - the player who is creating the watchpoint
+	 * 	Parameters:
+	 * 		String name - the name of the watchpoint to be created
+	 * 		Player p - the player who is creating the watchpoint
+	 * 		Variable size - the #PIPE_SIZE variable
 	 * 
-	 * 		Return Value:
-	 * 			WatchPoint - the created watchpoint, null if error occured
+	 * 	Returns:
+	 * 		WatchPoint - the created watchpoint, null if error occured
 	 */
 	public static Watchpoint createWatchpoint(String name, Player p, Variable size) {
 		Selection s = WorldEditHelper.getSelection(p);
@@ -55,19 +61,34 @@ public class Watchpoint extends Variable{
 	}
 	
 	/*
-	 * 		Parameters:
-	 * 			String name - the name of the watchpoint
-	 * 			Selection s - the worldedit selection to evaluate
-	 * 			boolean neg - indicates the position of the MSB in the selection, if true the MSB is the most negative position
+	 * 	Parameters:
+	 * 		String name - the name of the watchpoint
+	 * 		Selection s - the worldedit selection to evaluate
+	 * 		boolean neg - indicates the position of the MSB in the selection, if true the MSB is the most negative position
+	 * 
+	 * 	Description:
+	 * 		Watchpoint constructor
 	 */
 	public Watchpoint(String name, Selection s, boolean neg, Variable size, Player p) {
 		super(name, new ArrayList<Location>(), size);
-		this.prefix = ChatColor.BLACK + "[" + ChatColor.DARK_GREEN + name + ChatColor.BLACK + "] " + ChatColor.GRAY;
 		this.p = p;
 		
 		addSensors(s, neg);
 	}
 	
+	public Watchpoint(String name, ArrayList<Location> l, Variable size, Player p) {
+		super(name, l, size);
+		this.p = p;
+	}
+	
+	/*
+	 * 	Parameters:
+	 * 		Player p - the player who is attempting to appendSensors to this watchpoint
+	 * 		
+	 * 	Description:
+	 * 		Adds the players selction to the watchpoint, an appropriate message is displayed depending on
+	 * 		whether or not the addition failed
+	 */
 	public void appendSensors(Player p) {
 		Selection s = WorldEditHelper.getSelection(p);
 		
@@ -82,23 +103,23 @@ public class Watchpoint extends Variable{
 		addSensors(s, neg);
 		
 		if(prevSize == l.size()) {
-			p.sendMessage(RSDB.prefix + prefix + "Failed to append bits: The selection does not contain any redstone components.");
+			p.sendMessage(RSDB.prefix + "Failed to append bits: The selection does not contain any redstone components.");
 		} else {
-			p.sendMessage(RSDB.prefix + prefix + ChatColor.GREEN + "Successfully added " + (l.size() - prevSize) + 
+			p.sendMessage(RSDB.prefix + ChatColor.GREEN + "Successfully added " + (l.size() - prevSize) + 
 					" bits to watchpoint. " + l.size() + " total bits in watchpoint.");
 			for(int i = prevSize; i < l.size(); i++) {
-				p.sendMessage(RSDB.prefix + prefix + "bit" + i + ": block=" + l.get(i).getBlock().getType().toString() + 
+				p.sendMessage(RSDB.prefix + "bit" + i + ": block=" + l.get(i).getBlock().getType().toString() + 
 						" x=" + l.get(i).getBlockX() + " y=" + l.get(i).getBlockY() + " z=" + l.get(i).getBlockZ());
 			}
 		}
 	}
 	
 	/*
-	 * 		Return Type:
-	 * 			Returns false if any of the sensors are missing
+	 * 	Returns:
+	 * 		Returns false if any of the sensors are missing
 	 * 
-	 * 		Description:
-	 * 			Recalculates this watchpoint's using the most recent data
+	 * 	Description:
+	 * 		Recalculates this watchpoint's using the most recent data
 	 */
 	public int currentValue() {
 		int tmp = 0;
@@ -121,8 +142,12 @@ public class Watchpoint extends Variable{
 	}
 	
 	/*
-	 * 		Description:
-	 * 			Adds a sensor to the watchpoint
+	 * 	Parameters:
+	 * 		Selection s - the selection of the sensors
+	 * 		boolean neg - indicates whether the MSB is the most negative block or most positive
+	 * 
+	 * 	Description:
+	 * 		Adds a sensor to the watchpoint
 	 */
 	private void addSensors(Selection s, boolean neg) {
 		Location min = s.getMinimumPoint();
@@ -140,9 +165,8 @@ public class Watchpoint extends Variable{
 		
 		if(neg) {
 			min.subtract(inc);
-			System.out.println(max);
-			System.out.println(min);
-			for(Location l = max.clone(); !l.equals(max); l.subtract(inc)) {
+			for(Location l = max.clone(); !l.equals(min); l.subtract(inc)) {
+				System.out.println(l.getBlock().getType());
 				if(l.getBlock().getState().getData() instanceof Redstone) {
 					System.out.println(l);
 					super.l.add(l.clone());
@@ -150,8 +174,6 @@ public class Watchpoint extends Variable{
 			}
 		} else {
 			max.add(inc);
-			System.out.println(max);
-			System.out.println(min);
 			for(Location l = min.clone(); !l.equals(max); l.add(inc)) {
 				if(l.getBlock().getState().getData() instanceof Redstone) {
 					System.out.println(l);
@@ -162,8 +184,12 @@ public class Watchpoint extends Variable{
 	}
 	
 	/*
-	 * 		Description:
-	 * 			Validates the players selection.
+	 * 	Parameters:
+	 * 		Selection s - the players selection
+	 * 		Player p - the player who is made the selection
+	 * 
+	 * 	Returns:
+	 * 		A SelectionStatus indicating the status of the players selection
 	 */
 	private static SelectionStatus validateSelection(Selection s, Player p) {
 		if(s != null) {
@@ -196,16 +222,34 @@ public class Watchpoint extends Variable{
 		}
 	}
 
+	/*
+	 * 	Description:
+	 * 		Sets parent value to current value
+	 * 
+	 * @see com.gmail.redstonebunny.rsdb.variables.Variable#updateChildren()
+	 */
 	@Override
 	protected void updateChildren() {
 		super.setValue(currentValue());
 	}
 	
+	/*
+	 * 	Description:
+	 * 		Prevents watchpoints from being directly modified
+	 * 
+	 * @see com.gmail.redstonebunny.rsdb.variables.Variable#setValue(int)
+	 */
 	@Override
 	public void setValue(int value) {
-		p.sendMessage(RSDB.prefix + prefix + "You cannot set the value of watchpoints.");
+		p.sendMessage(RSDB.prefix + "You cannot set the value of watchpoints.");
 	}
 	
+	/*
+	 * 	Returns:
+	 * 		The current value of the watchpoint
+	 * 
+	 * @see com.gmail.redstonebunny.rsdb.variables.Variable#getValue()
+	 */
 	@Override
 	public Integer getValue() {
 		currentValue = currentValue();

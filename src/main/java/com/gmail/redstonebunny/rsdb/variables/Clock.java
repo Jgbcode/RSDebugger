@@ -11,9 +11,24 @@ import com.gmail.redstonebunny.rsdb.RSDB;
 import com.gmail.redstonebunny.rsdb.WorldEditHelper;
 import com.sk89q.worldedit.bukkit.selections.Selection;
 
+/*
+ * 	Clock class - used for updating the circuit
+ */
+
 public class Clock extends Output{
+	// List of all variables so they can be updated on the clock pulse
 	private HashMap<String, Variable> vars;
 	
+	/*
+	 * 	Parameters:
+	 * 		RSDB rsdb - the main plugin instance
+	 * 		Player p - the player who is creating this clock
+	 * 		Variable size - the #PIPE_SIZE variable
+	 * 		HashMap<String, Variable> vars - the list of all variables in the current debugger
+	 * 
+	 * 	Returns:
+	 * 		A newly created clock or null if the clock could not be created
+	 */
 	public static Clock createClock(RSDB rsdb, Player p, Variable size, HashMap<String, Variable> vars) {
 		Selection s = WorldEditHelper.getSelection(p);
 		
@@ -53,11 +68,28 @@ public class Clock extends Output{
 		}
 	}
 	
+	/*
+	 * 	Parameters:
+	 * 		Location l - the location of this clock
+	 * 		RSDB rsdb - the main plugin instance
+	 * 		Player p - the player who is creating this clock
+	 * 		HashMap<String, Variable> vars - the list of all variables in the current debugger
+	 * 
+	 * 	Description:
+	 * 		Clock constructor
+	 */
 	private Clock(Location l, RSDB rsdb, Player p, Variable size, HashMap<String, Variable> vars) {
 		super(l, rsdb, p, "#CLOCK", size);
 		this.vars = vars;
 	}
 	
+	/*
+	 * 	Parameters:
+	 * 		int numTicks - the number of ticks which the clock should pulse for
+	 * 
+	 * 	Returns:
+	 * 		True if the pulse was successful
+	 */
 	public boolean pulse(int numTicks) {
 		for(Variable v : vars.values()) {
 			if(v != null)
@@ -66,6 +98,10 @@ public class Clock extends Output{
 		return super.pulse(numTicks, Material.GLASS);
 	}
 	
+	/*
+	 * 	Returns:
+	 * 		True if the clock was successfully toggled
+	 */
 	public boolean toggle() {
 		if(super.l.get(0).getBlock().getType().equals(Material.GLASS)) {
 			for(Variable v : vars.values()) {
@@ -82,6 +118,12 @@ public class Clock extends Output{
 		return true;
 	}
 	
+	/*
+	 * Returns:
+	 * 	True if the clock can legally pulse	
+	 * 
+	 * @see com.gmail.redstonebunny.rsdb.variables.Output#validatePulse()
+	 */
 	@Override
 	protected boolean validatePulse() {
 		if(!l.get(0).getBlock().getType().equals(Material.GLASS)) {

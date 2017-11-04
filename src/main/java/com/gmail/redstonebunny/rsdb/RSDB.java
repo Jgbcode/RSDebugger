@@ -9,8 +9,14 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
+/*
+ * 	RSDB class - main plugin instance, stores all players debuggers
+ */
+
 public class RSDB extends JavaPlugin {
-	private HashMap<UUID, Debugger> debuggers;
+	private HashMap<UUID, Debugger> debuggers;	// All players debuggers
+	
+	// Prefixes for chat output
 	public static final String prefix = ChatColor.BLACK + "[" + ChatColor.DARK_GREEN + "RSDB" + ChatColor.BLACK + "] " + ChatColor.GRAY;
 	public static final String successPrefix = prefix + ChatColor.GREEN;
 	public static final String errorPrefix = prefix + ChatColor.DARK_RED;

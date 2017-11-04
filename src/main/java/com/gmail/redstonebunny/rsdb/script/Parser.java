@@ -4,8 +4,13 @@ import java.util.HashMap;
 
 import com.gmail.redstonebunny.rsdb.variables.Variable;
 
+/*
+ * 	Parse class - contains static methods for parsing expressions
+ */
+
 public class Parser {
 	
+	// A list of all valid operators
 	private static final String[][] operators = {
 			{"!", "~"},
 			{"*", "/", "%"},
@@ -21,14 +26,17 @@ public class Parser {
 			{"="}
 	};
 	
+	// A list of all characters that may be the second character in an operator
+	// Used to differentiate between operators such as "==" and "="
 	private static final char[] operatorLastChars = {'<', '>', '=', '&', '|'};
 	
 	/*
 	 *	Parameters:
-	 *		String str - the string representation of a variable
+	 *		String str - the string representation of a variable, the variable may have an expression
+	 *			inside it's pipeline stage brackets.
 	 *		HashMap<String, Variable> vars - the list of all variables
 	 *
-	 *	Return Value:
+	 *	Returns:
 	 *		Returns the integer representation of the variable
 	 *		Returns null if there was an error
 	 */
@@ -65,6 +73,14 @@ public class Parser {
 			return null;
 	}
 	
+	/*
+	 * 	Parameters:
+	 * 		String str - an expression to be reduced to a single integer
+	 * 		HashMap<String, Variable> vars - the list of all variables
+	 * 
+	 * 	Returns:
+	 * 		An integer representing the value of the expression or null if the expression was unable to be parsed
+	 */
 	public static Integer evaluateExpression(String str, HashMap<String, Variable> vars) {
 		str = str.replaceAll("\\s", "");
 		int index_p1 = str.indexOf("(");
@@ -82,6 +98,14 @@ public class Parser {
 		return evaluateExpressionRecurse(str, vars);
 	}
 	
+	/*
+	 * 	Parameters:
+	 * 		String str - an expression to be reduced to a single integer, the expression cannot have parenthesis
+	 * 		HashMap<String, Variable> vars - the list of all variables
+	 * 
+	 * 	Returns:
+	 * 		An integer representing the value of the expression or null if the expression was unable to be parsed
+	 */
 	private static Integer evaluateExpressionRecurse(String str, HashMap<String, Variable> vars) {
 		String op = "";
 		int index = -1;
@@ -191,6 +215,13 @@ public class Parser {
 		}
 	}
 	
+	/*
+	 * 	Parameter:
+	 * 		char c - the character to be tested
+	 * 
+	 * 	Returns:
+	 * 		True if the character is in operatorLastChars
+	 */
 	private static boolean isOperatorLastChar(char c) {
 		for(int i = 0; i < operatorLastChars.length; i++) {
 			if(c == operatorLastChars[i])
@@ -200,6 +231,14 @@ public class Parser {
 		return false;
 	}
 	
+	/*
+	 * 	Parameters:
+	 * 		String str - the string to find the index of the closing parenthesis
+	 * 		int indexStart - the index of the opening parenthesis
+	 * 
+	 * 	Returns:
+	 * 		The index of the closing parenthesis or -1 if the closing parenthesis could not be found
+	 */
 	private static int getFirstClosingPar(String str, int indexStart) {
 		char[] chars = str.toCharArray();
 		int count = 1;
@@ -216,6 +255,13 @@ public class Parser {
 		return -1;
 	}
 	
+	/*
+	 * 	Parameters:
+	 * 		String str - the string to be converted into an integer
+	 * 
+	 * 	Returns:
+	 * 		The integer representation of the string or null if the string could not be parsed
+	 */
 	public static Integer stringToInt(String str) {
 		try {
 			return Integer.parseInt(str);

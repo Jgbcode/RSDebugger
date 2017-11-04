@@ -9,9 +9,23 @@ import com.gmail.redstonebunny.rsdb.RSDB;
 import com.gmail.redstonebunny.rsdb.WorldEditHelper;
 import com.sk89q.worldedit.bukkit.selections.Selection;
 
+/*
+ * 	Reset class - interacts with the minecraft world to reset the circuit
+ */
+
 public class Reset extends Output {
+	// The player who created this reset
 	private Player p;
 	
+	/*
+	 * 	Parameters:
+	 * 		RSDB rsdb - the main plugin instance
+	 * 		Player p - the player who is creating this reset
+	 * 		Variable size - the #PIPE_SIZE variable
+	 * 
+	 * 	Returns:
+	 * 		A reset object or null if the provided arguments were invalid
+	 */
 	public static Reset createReset(RSDB rsdb, Player p, Variable size) {
 		Selection s = WorldEditHelper.getSelection(p);
 		
@@ -51,11 +65,24 @@ public class Reset extends Output {
 		}
 	}
 	
+	/*
+	 * 	Parameters:
+	 * 		Location l - the location of the reset output
+	 * 		RSDB rsdb - the main plugin instance
+	 * 		Player p - the player who is creating this reset
+	 * 		Variable size - the #PIPE_SIZE variable
+	 */
 	protected Reset(Location l, RSDB rsdb, Player p, Variable size) {
 		super(l, rsdb, p, "#RESET", size);
 		this.p = p;
 	}
 
+	/*
+	 * 	Returns:
+	 * 		True if the reset can legally pulse
+	 * 
+	 * @see com.gmail.redstonebunny.rsdb.variables.Output#validatePulse()
+	 */
 	@Override
 	protected boolean validatePulse() {
 		if(!l.get(0).getBlock().getType().equals(Material.GLASS)) {
@@ -66,6 +93,13 @@ public class Reset extends Output {
 		return true;
 	}
 	
+	/*
+	 * 	Parameters:
+	 * 		int numTicks - the number of ticks the reset should pulse for
+	 * 	
+	 * 	Returns:
+	 * 		True if the pulse was successful
+	 */
 	public boolean pulse(int numTicks) {
 		return super.pulse(numTicks, Material.GLASS);
 	}

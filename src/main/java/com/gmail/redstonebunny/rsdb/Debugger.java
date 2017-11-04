@@ -11,11 +11,23 @@ import com.gmail.redstonebunny.rsdb.variables.Reset;
 import com.gmail.redstonebunny.rsdb.variables.Variable;
 import com.gmail.redstonebunny.rsdb.variables.Watchpoint;
 
+/*
+ * 	Debugger class - holds a players debugging information and services commands
+ */
+
 public class Debugger {
-	private Player p;
-	private RSDB rsdb;
-	private HashMap<String, Variable> variables;
+	private Player p;	// The player who this debugger belongs to
+	private RSDB rsdb;	// The main plugin instance
+	private HashMap<String, Variable> variables;	// A map for converting variable names into variable objects
 	
+	/*
+	 * 	Parameters:
+	 * 		Player player - the player who created this debugger instance
+	 * 		RSDB rsdb - the main plugin instance
+	 * 
+	 * 	Description:
+	 * 		Debugger constructor
+	 */
 	public Debugger(Player player, RSDB rsdb) {
 		this.p = player;
 		this.rsdb = rsdb;
@@ -26,6 +38,13 @@ public class Debugger {
 		player.sendMessage(RSDB.successPrefix + "Successfully created a new debugger.");
 	}
 	
+	/*
+	 * 	Parameters:
+	 * 		String args[] - command arguments
+	 * 
+	 * 	Description:
+	 * 		This function services a majority of "/rsdb" commands. The remaining commands are serviced in RSDB.onCommand
+	 */
 	public void processCommand(String args[]) {
 		if(args[0].equalsIgnoreCase("watch")) {
 			commandWatch(args);
@@ -45,6 +64,13 @@ public class Debugger {
 		}
 	}
 	
+	/*
+	 * 	Parameters:
+	 * 		String args[] - command arguments
+	 * 
+	 * 	Description:
+	 * 		Services "/rsdb watch" commands
+	 */
 	private void commandWatch(String args[]) {
 		if(args.length == 2) {
 			Variable w = variables.get(args[1]);
@@ -63,6 +89,13 @@ public class Debugger {
 		}
 	}
 	
+	/*
+	 * 	Parameters:
+	 * 		String args[] - command arguments
+	 * 
+	 * 	Description:
+	 * 		Services "/rsdb reset" commands
+	 */
 	private void commandReset(String args[]) {
 		if(args.length == 1) {
 			if(variables.get("#RESET") != null)
@@ -78,6 +111,13 @@ public class Debugger {
 		}
 	}
 	
+	/*
+	 * 	Parameters:
+	 * 		String args[] - command arguments
+	 * 
+	 * 	Description:
+	 * 		Services "/rsdb step" commands
+	 */
 	private void commandStep(String args[]) {
 		if(variables.get("#CLOCK") == null) {
 			p.sendMessage(RSDB.prefix + "You cannot use the step command without creating a clock.");
@@ -99,6 +139,13 @@ public class Debugger {
 		}
 	}
 	
+	/*
+	 * 	Parameters:
+	 * 		String args[] - command arguments
+	 * 
+	 * 	Description:
+	 * 		Services "/rsdb set" commands
+	 */
 	private void commandSet(String args[]) {
 		if(args.length == 2) {
 			if(args[1].equals("#CLOCK")) {
@@ -144,6 +191,13 @@ public class Debugger {
 		}
 	}
 	
+	/*
+	 * 	Parameters:
+	 * 		String args[] - command arguments
+	 * 
+	 * 	Description:
+	 * 		Services "/rsdb delete" commands
+	 */
 	private void commandDelete(String args[]) {
 		if(args.length == 2) {
 			if(args[1].equals("#PIPE_SIZE")) {
@@ -161,6 +215,13 @@ public class Debugger {
 		}
 	}
 	
+	/*
+	 * 	Parameters:
+	 * 		String args[] - command arguments
+	 * 
+	 * 	Description:
+	 * 		Services "/rsdb print" commands
+	 */
 	private void commandPrint(String args[]) {
 		if(args.length == 1) {
 			for(Variable v : variables.values()) {
@@ -193,6 +254,14 @@ public class Debugger {
 		}
 	}
 	
+	/*
+	 * 	Parameters:
+	 * 		String[] args - command arguments
+	 * 		Player p - the player who issued the command
+	 * 
+	 * 	Description:
+	 * 		Services "/rsdb help" commands
+	 */
 	public static void help(String[] args, Player p) {
 		if(args == null || args.length < 2 || args[1].equals("1")) {
 			p.sendMessage(
