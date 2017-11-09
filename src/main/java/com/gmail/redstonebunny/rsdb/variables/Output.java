@@ -14,7 +14,7 @@ import com.gmail.redstonebunny.rsdb.RSDB;
 
 public abstract class Output extends Variable {
 	protected RSDB rsdb;	// Main plugin instance
-	protected Player p;		// Player who created this output
+	protected Material m;	// Material that is swapped with a redstone block
 	
 	// Array used for checking all points around a certain block
 	protected static final Vector[] surround = {new Vector(0, 0, 1), new Vector(0, 0, -1), new Vector(0, -1, 0), new Vector(1, 0, 0), new Vector(-1, 0, 0)};
@@ -26,10 +26,10 @@ public abstract class Output extends Variable {
 	 * 		String name - the name of this output
 	 * 		Variable size - the #PIPE_SIZE variable
 	 */
-	protected Output(Location l, RSDB rsdb, Player p, String name, Variable size) {
-		super(name, l, size);
+	protected Output(Location l, RSDB rsdb, Player p, String name, Variable size, Material m) {
+		super(name, l, size, p);
 		this.rsdb = rsdb;
-		this.p = p;
+		this.m = m;
 	}
 	
 	/*
@@ -64,13 +64,13 @@ public abstract class Output extends Variable {
 	 * 	Returns:
 	 * 		True if the toggle was successful
 	 */
-	public boolean toggle(final Material replace) {
-		if(l.get(0).getBlock().getType().equals(replace)) {
+	public boolean toggle() {
+		if(l.get(0).getBlock().getType().equals(m)) {
 			l.get(0).getBlock().setType(Material.REDSTONE_BLOCK);
 			currentValue++;
 			return true;
 		} else if(l.get(0).getBlock().getType().equals(Material.REDSTONE_BLOCK)) {
-			l.get(0).getBlock().setType(replace);
+			l.get(0).getBlock().setType(m);
 			return true;
 		}
 		

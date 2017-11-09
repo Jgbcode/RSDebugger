@@ -28,6 +28,10 @@ public class RSDB extends JavaPlugin {
 	
 	@Override
 	public void onDisable() {
+		for(Debugger d : debuggers.values()) {
+			d.disable();
+		}
+		
 		debuggers.clear();
 		debuggers = null;
 	}
@@ -65,7 +69,6 @@ public class RSDB extends JavaPlugin {
 			
 			debuggers.get(player.getUniqueId()).processCommand(args);
 		}
-		
 		return true;
 	}
 }

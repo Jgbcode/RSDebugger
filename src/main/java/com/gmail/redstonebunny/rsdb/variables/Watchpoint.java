@@ -16,9 +16,6 @@ import com.sk89q.worldedit.bukkit.selections.Selection;
  */
 
 public class Watchpoint extends Variable{
-	// The player who created this watchpoint
-	private Player p;
-	
 	// Enum to indicate the direction of a selection
 	private enum SelectionStatus {
 		POSITIVE, NEGATIVE, FAILURE
@@ -54,10 +51,30 @@ public class Watchpoint extends Variable{
 			return null;
 		} else {
 			p.sendMessage(RSDB.successPrefix + "Successfully created watchpoint \"" + name + "\" :");
-			w.printLocation(p);
+			w.printLocation();
 		}
 		
 		return w;
+	}
+	
+	/*
+	 * 	Parameters:
+	 * 		String name - the name of the watchpoint to be created
+	 * 		Player p - the player who is creating the watchpoint
+	 * 		Variable size - the #PIPE_SIZE variable
+	 * 		ArrayList<Location> l - the locations to watch
+	 * 
+	 * 	Returns:
+	 * 		Watchpoint - the created watchpoint, null if error occured
+	 */
+	public static Watchpoint createWatchpoint(String name, Player p, Variable size, ArrayList<Location> l) {
+		for(Location loc : l) {
+			if(!(loc.getBlock().getState().getData() instanceof Redstone)) {
+				return null;
+			}
+		}
+		
+		return new Watchpoint(name, l, size, p);
 	}
 	
 	/*
@@ -70,15 +87,13 @@ public class Watchpoint extends Variable{
 	 * 		Watchpoint constructor
 	 */
 	public Watchpoint(String name, Selection s, boolean neg, Variable size, Player p) {
-		super(name, new ArrayList<Location>(), size);
-		this.p = p;
+		super(name, new ArrayList<Location>(), size, p);
 		
 		addSensors(s, neg);
 	}
 	
 	public Watchpoint(String name, ArrayList<Location> l, Variable size, Player p) {
-		super(name, l, size);
-		this.p = p;
+		super(name, l, size, p);
 	}
 	
 	/*
@@ -102,15 +117,11 @@ public class Watchpoint extends Variable{
 		
 		addSensors(s, neg);
 		
-		if(prevSize == l.size()) {
-			p.sendMessage(RSDB.prefix + "Failed to append bits: The selection does not contain any redstone components.");
-		} else {
-			p.sendMessage(RSDB.prefix + ChatColor.GREEN + "Successfully added " + (l.size() - prevSize) + 
-					" bits to watchpoint. " + l.size() + " total bits in watchpoint.");
-			for(int i = prevSize; i < l.size(); i++) {
-				p.sendMessage(RSDB.prefix + "bit" + i + ": block=" + l.get(i).getBlock().getType().toString() + 
-						" x=" + l.get(i).getBlockX() + " y=" + l.get(i).getBlockY() + " z=" + l.get(i).getBlockZ());
-			}
+		p.sendMessage(RSDB.prefix + ChatColor.GREEN + "Successfully added " + (l.size() - prevSize) + 
+				" bits to watchpoint. " + l.size() + " total bits in watchpoint.");
+		for(int i = prevSize; i < l.size(); i++) {
+			p.sendMessage(RSDB.prefix + "bit" + i + ": block=" + l.get(i).getBlock().getType().toString() + 
+					" x=" + l.get(i).getBlockX() + " y=" + l.get(i).getBlockY() + " z=" + l.get(i).getBlockZ());
 		}
 	}
 	
@@ -141,6 +152,15 @@ public class Watchpoint extends Variable{
 		return (ret) ? tmp : -1;
 	}
 	
+	public boolean isLocationWatched(Location l) {
+		for(int i = 0; i < super.l.size(); i++) {
+			if(l.equals(super.l.get(i)))
+				return true;
+		}
+		
+		return false;
+	}
+	
 	/*
 	 * 	Parameters:
 	 * 		Selection s - the selection of the sensors
@@ -166,17 +186,14 @@ public class Watchpoint extends Variable{
 		if(neg) {
 			min.subtract(inc);
 			for(Location l = max.clone(); !l.equals(min); l.subtract(inc)) {
-				System.out.println(l.getBlock().getType());
-				if(l.getBlock().getState().getData() instanceof Redstone) {
-					System.out.println(l);
+				if(l.getBlock().getState().getData() instanceof Redstone && !isLocationWatched(l)) {
 					super.l.add(l.clone());
 				}
 			}
 		} else {
 			max.add(inc);
 			for(Location l = min.clone(); !l.equals(max); l.add(inc)) {
-				if(l.getBlock().getState().getData() instanceof Redstone) {
-					System.out.println(l);
+				if(l.getBlock().getState().getData() instanceof Redstone && !isLocationWatched(l)) {
 					super.l.add(l.clone());
 				}
 			}

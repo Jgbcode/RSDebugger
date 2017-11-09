@@ -7,6 +7,8 @@ import org.bukkit.entity.Player;
 
 import com.gmail.redstonebunny.rsdb.script.Parser;
 import com.gmail.redstonebunny.rsdb.variables.Clock;
+import com.gmail.redstonebunny.rsdb.variables.Operator;
+import com.gmail.redstonebunny.rsdb.variables.Output;
 import com.gmail.redstonebunny.rsdb.variables.Reset;
 import com.gmail.redstonebunny.rsdb.variables.Variable;
 import com.gmail.redstonebunny.rsdb.variables.Watchpoint;
@@ -32,10 +34,18 @@ public class Debugger {
 		this.p = player;
 		this.rsdb = rsdb;
 		this.variables = new HashMap<String, Variable>();
-		variables.put("#PIPE_SIZE", new Variable("#PIPE_SIZE", 10));
+		variables.put("#PIPE_SIZE", new Variable("#PIPE_SIZE", 10, p));
 		variables.put("#CLOCK", null);
 		variables.put("#RESET", null);
 		player.sendMessage(RSDB.successPrefix + "Successfully created a new debugger.");
+	}
+	
+	public void disable() {
+		for(Variable v : variables.values()) {
+			if(v instanceof Output && ((Output)v).getState()) {
+				((Output)v).toggle();
+			}
+		}
 	}
 	
 	/*
@@ -160,7 +170,7 @@ public class Debugger {
 			else {
 				p.sendMessage(RSDB.prefix + "Unknown component: \"" + args[1] + "\".");
 			}
-		} else if(args.length == 3 && args[1].startsWith("$")) {
+		} else if(args.length == 3 && (args[1].startsWith("$") || args[1].startsWith("@"))) {
 			Integer tmp = Parser.getValue(args[2], variables);
 			if(tmp == null) {
 				p.sendMessage(RSDB.prefix + "Failed to set variable: Illegal value.");
@@ -177,8 +187,16 @@ public class Debugger {
 				} else {
 					if(variables.containsKey(args[1].substring(1))) {
 						variables.get(args[1].substring(1)).setValue(tmp);
-					} else if(Variable.isLegalVarName(args[1].substring(1))) {
-						variables.put(args[1].substring(1), new Variable(args[1].substring(1), variables.get("#SIZE")));
+						p.sendMessage(RSDB.successPrefix + "Successfully set \"" + args[1] + "\" to " + args[2] + ".");
+					} else if(args[1].startsWith("$") && Variable.isLegalVarName(args[1].substring(1))) {
+						variables.put(args[1].substring(1), new Variable(args[1].substring(1), variables.get("#PIPE_SIZE"), p));
+						p.sendMessage(RSDB.successPrefix + "Successfully set \"" + args[1] + "\" to " + args[2] + ".");
+					} else if(args[1].startsWith("@")) {
+						Operator op = Operator.createOperator(args[1], variables.get("#PIPE_SIZE"), p, tmp);
+						if(op != null) {
+							variables.put(args[1], op);
+							p.sendMessage(RSDB.successPrefix + "Successfully set \"" + args[1] + "\" to " + args[2] + ".");
+						}
 					}
 					else {
 						p.sendMessage(RSDB.prefix + "Failed to set variable: Variable name contains illegal characters.");
@@ -227,14 +245,14 @@ public class Debugger {
 			for(Variable v : variables.values()) {
 				if(v == null)
 					continue;
-				v.printValue(p);
+				v.printValue();
 			}
 		} else if(args.length == 2) {
 			if(!variables.containsKey(args[1])) {
 				Integer value = Parser.evaluateExpression(args[1], variables);
 				
 				if(value != null) {
-					p.sendMessage(RSDB.prefix + ChatColor.GOLD + args[1] + ChatColor.GRAY + " = " + value + " <-> " + Integer.toBinaryString(value) + "b");
+					p.sendMessage(RSDB.prefix + ChatColor.GOLD + args[1] + ChatColor.GRAY + " = " + value + " : " + Integer.toBinaryString(value) + "b");
 				}
 				else {
 					p.sendMessage(RSDB.prefix + "Could not find variable \"" + args[1] + "\".");
@@ -242,7 +260,7 @@ public class Debugger {
 			} 
 			else {
 				if(variables.get(args[1]) != null) {
-					variables.get(args[1]).printLocation(p);
+					variables.get(args[1]).printLocation();
 				}
 				else {
 					p.sendMessage(RSDB.prefix + "Could not find variable \"" + args[1] + "\".");

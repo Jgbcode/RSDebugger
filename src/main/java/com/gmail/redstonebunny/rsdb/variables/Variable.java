@@ -20,6 +20,7 @@ public class Variable {
 	protected ArrayList<Location> l;	// The location of the variable (null if none)
 	protected Variable size;	// #PIPE_SIZE variable which directly controls the size of pastValues
 	protected int currentValue;	// The current value of the variable
+	protected Player p;	// The player who created this variable
 	
 	/*
 	 * 	Parameters:
@@ -43,12 +44,13 @@ public class Variable {
 	 * 	Description:
 	 * 		Variable constructor, this constructor is specifically designed for #PIPE_SIZE
 	 */
-	public Variable(String name, int initial) {
+	public Variable(String name, int initial, Player p) {
 		this.name = name;
 		this.currentValue = initial;
 		this.l = null;
 		this.size = this;
 		pastValues = new ArrayList<Integer>();
+		this.p = p;
 	}
 	
 	/*
@@ -59,11 +61,12 @@ public class Variable {
 	 * 	Description:
 	 * 		Variable constructor for variables with no location
 	 */
-	public Variable(String name, Variable size) {
+	public Variable(String name, Variable size, Player p) {
 		this.name = name;
 		this.l = null;
 		this.size = size;
 		pastValues = new ArrayList<Integer>();
+		this.p = p;
 	}
 	
 	/*
@@ -75,12 +78,13 @@ public class Variable {
 	 * 	Description:
 	 * 		Variable constructor for variables with a single location
 	 */
-	public Variable(String name, Location l, Variable size) {
+	public Variable(String name, Location l, Variable size, Player p) {
 		this.name = name;
 		this.l = new ArrayList<Location>();
 		this.l.add(l);
 		this.size = size;
 		pastValues = new ArrayList<Integer>();
+		this.p = p;
 	}
 	
 	/*
@@ -92,11 +96,12 @@ public class Variable {
 	 * 	Description:
 	 * 		Variable constructor for variables with many locations
 	 */
-	public Variable(String name, ArrayList<Location> l, Variable size) {
+	public Variable(String name, ArrayList<Location> l, Variable size, Player p) {
 		this.name = name;
 		this.l = l;
 		this.size = size;
 		pastValues = new ArrayList<Integer>();
+		this.p = p;
 	}
 	
 	/*
@@ -106,9 +111,8 @@ public class Variable {
 	 * 	Description:
 	 * 		Prints the variable's value
 	 */
-	public void printValue(Player p) {
-		
-		p.sendMessage(RSDB.prefix + ChatColor.GOLD + "$" + name + ChatColor.GRAY + " = " + getValue() + " <-> " + Integer.toBinaryString(getValue()) + "b");
+	public void printValue() {
+		p.sendMessage(RSDB.prefix + ChatColor.GOLD + "$" + name + ChatColor.GRAY + " = " + getValue() + " : " + Integer.toBinaryString(getValue()) + "b");
 	}
 	
 	/*
@@ -118,7 +122,7 @@ public class Variable {
 	 * 	Description:
 	 * 		Prints the variable's location if it has one
 	 */
-	public void printLocation(Player p) {
+	public void printLocation() {
 		if(l != null) {
 			for(int i = 0; i < l.size(); i++)
 				p.sendMessage(RSDB.prefix + name + "(bit" + i + ") : x=" + l.get(i).getBlockX() + " y=" + l.get(i).getBlockY() + " z=" + l.get(i).getBlockZ() + " type=" + l.get(i).getBlock().getType());
@@ -142,6 +146,14 @@ public class Variable {
 		}
 			
 		return null;
+	}
+	
+	/*
+	 * 	Returns:
+	 * 		The name of this variable
+	 */
+	public String getName() {
+		return name;
 	}
 	
 	/*

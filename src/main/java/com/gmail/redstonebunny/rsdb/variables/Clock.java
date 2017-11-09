@@ -60,7 +60,7 @@ public class Clock extends Output{
 		if(l.getBlock().getType().equals(Material.GLASS)) {
 			Clock c = new Clock(l, rsdb, p, size, vars);
 			p.sendMessage(RSDB.successPrefix + "Successfully created a clock:");
-			c.printLocation(p);
+			c.printLocation();
 			return c;
 		} else {
 			p.sendMessage(RSDB.prefix + "Unable to create clock: The clock selection must be a block of glass.");
@@ -79,7 +79,7 @@ public class Clock extends Output{
 	 * 		Clock constructor
 	 */
 	private Clock(Location l, RSDB rsdb, Player p, Variable size, HashMap<String, Variable> vars) {
-		super(l, rsdb, p, "#CLOCK", size);
+		super(l, rsdb, p, "#CLOCK", size, Material.GLASS);
 		this.vars = vars;
 	}
 	
@@ -110,7 +110,7 @@ public class Clock extends Output{
 			}
 		}
 		
-		if(!super.toggle(Material.GLASS)) {
+		if(!super.toggle()) {
 			p.sendMessage(RSDB.errorPrefix + "Unable to trigger clock: The clock source was modified.");
 			return false;
 		}

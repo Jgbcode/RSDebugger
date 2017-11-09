@@ -2,6 +2,7 @@ package com.gmail.redstonebunny.rsdb.script;
 
 import java.util.HashMap;
 
+import com.gmail.redstonebunny.rsdb.variables.Operator;
 import com.gmail.redstonebunny.rsdb.variables.Variable;
 
 /*
@@ -23,12 +24,37 @@ public class Parser {
 			{"|"},
 			{"&&"},
 			{"||"},
-			{"="}
 	};
 	
 	// A list of all characters that may be the second character in an operator
 	// Used to differentiate between operators such as "==" and "="
 	private static final char[] operatorLastChars = {'<', '>', '=', '&', '|'};
+	
+	// A hashmap of all operators for converting into integers
+	private static final HashMap<String, Integer> operatorStrings;
+	static {
+		operatorStrings = new HashMap<String, Integer>();
+		operatorStrings.put("!", 0);
+		operatorStrings.put("~", 1);
+		operatorStrings.put("*", 2);
+		operatorStrings.put("/", 3);
+		operatorStrings.put("%", 4);
+		operatorStrings.put("+", 5);
+		operatorStrings.put("-", 6);
+		operatorStrings.put("<<", 7);
+		operatorStrings.put(">>", 8);
+		operatorStrings.put("<", 9);
+		operatorStrings.put("<=", 10);
+		operatorStrings.put(">", 11);
+		operatorStrings.put(">=", 12);
+		operatorStrings.put("==", 13);
+		operatorStrings.put("!=", 14);
+		operatorStrings.put("&", 15);
+		operatorStrings.put("^", 16);
+		operatorStrings.put("|", 17);
+		operatorStrings.put("&&", 18);
+		operatorStrings.put("||", 19);
+	}
 	
 	/*
 	 *	Parameters:
@@ -41,11 +67,14 @@ public class Parser {
 	 *		Returns null if there was an error
 	 */
 	public static Integer getValue(String str, HashMap<String, Variable> vars) {
+		if(str.length() == 0)
+			return null;
+		
 		if(!str.startsWith("$")) {
 			Integer tmp;
 			if((tmp = stringToInt(str)) != null)
 				return tmp;
-			return null;
+
 		}
 		
 		str = str.substring(1);
@@ -83,6 +112,21 @@ public class Parser {
 	 */
 	public static Integer evaluateExpression(String str, HashMap<String, Variable> vars) {
 		str = str.replaceAll("\\s", "");
+		int index_a1 = str.indexOf('@');
+		while(index_a1 != -1) {
+			int index_a2 = str.indexOf('@', index_a1 + 1);
+			if(index_a2 == -1)
+				return null;
+			Variable v = vars.get(str.substring(index_a1, index_a2 + 1));
+			if(v instanceof Operator) {
+				str = str.replaceFirst(str.substring(index_a1, index_a2 + 1), ((Operator)v).getOperator());
+			}
+			else {
+				return null;
+			}
+			index_a1 = str.indexOf('@');
+		}
+		
 		int index_p1 = str.indexOf("(");
 		while(index_p1 != -1) {
 			int index_p2 = getFirstClosingPar(str, index_p1);
@@ -131,6 +175,7 @@ public class Parser {
 				break;
 			}
 		}
+
 		
 		if(index == -1)
 			return getValue(str, vars);
@@ -186,30 +231,7 @@ public class Parser {
 		case("&&") :
 			return (arg1 != 0 && arg2 != 0) ? 1 : 0;
 		case("||") :
-			return (arg1 != 0 || arg2 != 0) ? 1 : 0;
-		case("=") :
-			String var = str.substring(0, index);
-			if(!var.startsWith("$")) {
-				return null;
-			} else if(var.charAt(1) == '#') {
-				if(vars.containsKey(var.substring(1))) {
-					vars.get(var.substring(1)).setValue(arg2);
-				}
-				else {
-					return null;
-				}
-			} else {
-				if(vars.containsKey(var.substring(1))) {
-					vars.get(var.substring(1)).setValue(arg2);
-				} else if(Variable.isLegalVarName(var.substring(1))) {
-					vars.put(var.substring(1), new Variable(var.substring(1), vars.get("#PIPE_SIZE")));
-				}
-				else {
-					return null;
-				}
-			}
-			return arg2;
-			
+			return (arg1 != 0 || arg2 != 0) ? 1 : 0;	
 		default:
 			return null;
 		}
@@ -263,6 +285,9 @@ public class Parser {
 	 * 		The integer representation of the string or null if the string could not be parsed
 	 */
 	public static Integer stringToInt(String str) {
+		if(operatorStrings.containsKey(str))
+			return operatorStrings.get(str);
+		
 		try {
 			return Integer.parseInt(str);
 		} catch(Exception e) {

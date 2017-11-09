@@ -57,7 +57,7 @@ public class Reset extends Output {
 		if(l.getBlock().getType().equals(Material.GLASS)) {
 			Reset r = new Reset(l, rsdb, p, size);
 			p.sendMessage(RSDB.successPrefix + "Successfully created a reset:");
-			r.printLocation(p);
+			r.printLocation();
 			return r;
 		} else {
 			p.sendMessage(RSDB.prefix + "Unable to create reset: The reset selection must be a block of glass.");
@@ -73,7 +73,7 @@ public class Reset extends Output {
 	 * 		Variable size - the #PIPE_SIZE variable
 	 */
 	protected Reset(Location l, RSDB rsdb, Player p, Variable size) {
-		super(l, rsdb, p, "#RESET", size);
+		super(l, rsdb, p, "#RESET", size, Material.GLASS);
 		this.p = p;
 	}
 
