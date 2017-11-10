@@ -9,6 +9,7 @@ import org.bukkit.material.RedstoneWire;
 
 import com.gmail.redstonebunny.rsdb.RSDB;
 import com.gmail.redstonebunny.rsdb.WorldEditHelper;
+import com.gmail.redstonebunny.rsdb.script.Script;
 import com.sk89q.worldedit.bukkit.selections.Selection;
 
 /*
@@ -18,6 +19,7 @@ import com.sk89q.worldedit.bukkit.selections.Selection;
 public class Clock extends Output{
 	// List of all variables so they can be updated on the clock pulse
 	private HashMap<String, Variable> vars;
+	private Script script;
 	
 	/*
 	 * 	Parameters:
@@ -29,7 +31,7 @@ public class Clock extends Output{
 	 * 	Returns:
 	 * 		A newly created clock or null if the clock could not be created
 	 */
-	public static Clock createClock(RSDB rsdb, Player p, Variable size, HashMap<String, Variable> vars) {
+	public static Clock createClock(RSDB rsdb, Player p, Variable size, HashMap<String, Variable> vars, Script script) {
 		Selection s = WorldEditHelper.getSelection(p);
 		
 		if(s == null)
@@ -58,7 +60,7 @@ public class Clock extends Output{
 		}
 		
 		if(l.getBlock().getType().equals(Material.GLASS)) {
-			Clock c = new Clock(l, rsdb, p, size, vars);
+			Clock c = new Clock(l, rsdb, p, size, vars, script);
 			p.sendMessage(RSDB.successPrefix + "Successfully created a clock:");
 			c.printLocation();
 			return c;
@@ -78,9 +80,10 @@ public class Clock extends Output{
 	 * 	Description:
 	 * 		Clock constructor
 	 */
-	private Clock(Location l, RSDB rsdb, Player p, Variable size, HashMap<String, Variable> vars) {
+	private Clock(Location l, RSDB rsdb, Player p, Variable size, HashMap<String, Variable> vars, Script script) {
 		super(l, rsdb, p, "#CLOCK", size, Material.GLASS);
 		this.vars = vars;
+		this.script = script;
 	}
 	
 	/*
@@ -95,7 +98,14 @@ public class Clock extends Output{
 			if(v != null)
 				v.update();
 		}
-		return super.pulse(numTicks, Material.GLASS);
+		
+		if(script == null || script.executeSciptSection("loop")) {
+			return super.pulse(numTicks, Material.GLASS);
+		}
+		else {
+			p.sendMessage(RSDB.errorPrefix + "Clock failed to pulse. Script error.");
+			return false;
+		}
 	}
 	
 	/*
@@ -108,6 +118,11 @@ public class Clock extends Output{
 				if(v != null)
 					v.update();
 			}
+		}
+		
+		if(script != null && !script.executeSciptSection("loop")) {
+			p.sendMessage(RSDB.errorPrefix + "Clock failed to toggle. Script error.");
+			return false;
 		}
 		
 		if(!super.toggle()) {

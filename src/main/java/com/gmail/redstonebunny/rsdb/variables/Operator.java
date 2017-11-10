@@ -7,7 +7,7 @@ import com.gmail.redstonebunny.rsdb.RSDB;
 
 public class Operator extends Variable {
 
-	private static final String[] operators = {"!", "~", "*", "/", "%", "+", "-", "<<", ">>", "<", "<=", ">", ">=", "==", "!=", "&", "^", "|", "&&", "||" };
+	private static final String[] operators = {"!", "~", "*", "/", "%", "+", "-", "<<", ">>", "<", "<=", ">", ">=", "==", "!=", "&", "^", "|", "&&", "||", "=" };
 	
 	public static Operator createOperator(String name, Variable size, Player p, int value) {
 		if(name.startsWith("@") && name.endsWith("@")) {
@@ -56,5 +56,7 @@ public class Operator extends Variable {
 	public void setValue(int value) {
 		if(value >= 0 && value < operators.length)
 			currentValue = value;
+		else
+			p.sendMessage(RSDB.errorPrefix + "Illegal value set for " + name + ".");
 	}
 }

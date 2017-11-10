@@ -32,7 +32,7 @@
             <configuration>
               <artifactSet>
                 <includes>
-                  <include>*:jpastee</include>
+                  <include>*:*</include>
                 </includes>
               </artifactSet>
             </configuration>

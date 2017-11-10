@@ -2,6 +2,8 @@ package com.gmail.redstonebunny.rsdb.script;
 
 import java.util.HashMap;
 
+import org.bukkit.entity.Player;
+
 import com.gmail.redstonebunny.rsdb.variables.Operator;
 import com.gmail.redstonebunny.rsdb.variables.Variable;
 
@@ -24,6 +26,7 @@ public class Parser {
 			{"|"},
 			{"&&"},
 			{"||"},
+			{"="}
 	};
 	
 	// A list of all characters that may be the second character in an operator
@@ -54,6 +57,7 @@ public class Parser {
 		operatorStrings.put("|", 17);
 		operatorStrings.put("&&", 18);
 		operatorStrings.put("||", 19);
+		operatorStrings.put("=", 20);
 	}
 	
 	/*
@@ -66,7 +70,7 @@ public class Parser {
 	 *		Returns the integer representation of the variable
 	 *		Returns null if there was an error
 	 */
-	public static Integer getValue(String str, HashMap<String, Variable> vars) {
+	public static Integer getValue(String str, HashMap<String, Variable> vars, Player p) {
 		if(str.length() == 0)
 			return null;
 		
@@ -84,7 +88,7 @@ public class Parser {
 		Integer pos = -1;
 		
 		if(b != -1 && e != -1) {
-			pos = evaluateExpression(str.substring(b + 1, e), vars);
+			pos = evaluateExpression(str.substring(b + 1, e), vars, p);
 			if(pos == null)
 				return null;
 			str = str.substring(0, b) + str.substring(e + 1);
@@ -110,7 +114,7 @@ public class Parser {
 	 * 	Returns:
 	 * 		An integer representing the value of the expression or null if the expression was unable to be parsed
 	 */
-	public static Integer evaluateExpression(String str, HashMap<String, Variable> vars) {
+	public static Integer evaluateExpression(String str, HashMap<String, Variable> vars, Player p) {
 		str = str.replaceAll("\\s", "");
 		int index_a1 = str.indexOf('@');
 		while(index_a1 != -1) {
@@ -132,14 +136,14 @@ public class Parser {
 			int index_p2 = getFirstClosingPar(str, index_p1);
 			if(index_p2 == -1)
 				return null;
-			Integer tmp = evaluateExpression(str.substring(index_p1 + 1, index_p2), vars);
+			Integer tmp = evaluateExpression(str.substring(index_p1 + 1, index_p2), vars, p);
 			if(tmp == null)
 				return null;
 			str = str.replaceFirst(str.substring(index_p1, index_p2 + 1), Integer.toString(tmp));
 			index_p1 = str.indexOf("(");
 		}
 		
-		return evaluateExpressionRecurse(str, vars);
+		return evaluateExpressionRecurse(str, vars, p);
 	}
 	
 	/*
@@ -150,7 +154,7 @@ public class Parser {
 	 * 	Returns:
 	 * 		An integer representing the value of the expression or null if the expression was unable to be parsed
 	 */
-	private static Integer evaluateExpressionRecurse(String str, HashMap<String, Variable> vars) {
+	private static Integer evaluateExpressionRecurse(String str, HashMap<String, Variable> vars, Player p) {
 		String op = "";
 		int index = -1;
 		
@@ -178,10 +182,10 @@ public class Parser {
 
 		
 		if(index == -1)
-			return getValue(str, vars);
+			return getValue(str, vars, p);
 		
-		Integer arg1 = evaluateExpressionRecurse(str.substring(0, index), vars);
-		Integer arg2 = evaluateExpressionRecurse(str.substring(index + op.length()), vars);
+		Integer arg1 = evaluateExpressionRecurse(str.substring(0, index), vars, p);
+		Integer arg2 = evaluateExpressionRecurse(str.substring(index + op.length()), vars, p);
 		
 		if(op.equals("!") || op.equals("~") || op.equals("=")) {
 			if(arg2 == null)
@@ -231,7 +235,35 @@ public class Parser {
 		case("&&") :
 			return (arg1 != 0 && arg2 != 0) ? 1 : 0;
 		case("||") :
-			return (arg1 != 0 || arg2 != 0) ? 1 : 0;	
+			return (arg1 != 0 || arg2 != 0) ? 1 : 0;
+		case("=") :
+			String var = str.substring(0, index);
+			if(var.startsWith("$")) {
+				if(var.charAt(1) == '#') {
+					if(vars.containsKey(var.substring(1))) {
+						vars.get(var.substring(1)).setValue(arg2);
+					}
+					else {
+						return null;
+					}
+				} else {
+					if(vars.containsKey(var.substring(1))) {
+						vars.get(var.substring(1)).setValue(arg2);
+					} else if(Variable.isLegalVarName(var.substring(1))) {
+						Variable tmp = new Variable(var.substring(1), vars.get("#PIPE_SIZE"), p);
+						tmp.setValue(arg2);
+						vars.put(var.substring(1), tmp);
+					}
+					else {
+						return null;
+					}
+				}
+			}
+			else {
+				return null;
+			}
+			
+			return arg2;
 		default:
 			return null;
 		}

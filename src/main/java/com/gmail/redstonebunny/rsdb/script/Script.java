@@ -131,7 +131,7 @@ public class Script {
 	private boolean elementif(Node n) {
 		if(n.getAttributes().getLength() == 1 && n.getAttributes().item(0).getNodeName().equals("statement")) {
 			String statement = n.getAttributes().item(0).getNodeValue();
-			Integer result = Parser.evaluateExpression(statement, vars);
+			Integer result = Parser.evaluateExpression(statement, vars, p);
 			if(result == null) {
 				scriptError(n, "Unable to evaluate statement");
 				return false;

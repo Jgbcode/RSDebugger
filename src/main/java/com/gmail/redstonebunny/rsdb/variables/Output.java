@@ -93,7 +93,7 @@ public abstract class Output extends Variable {
 	 */
 	@Override
 	public void setValue(int value) {
-		p.sendMessage(RSDB.errorPrefix + "The value of " + "$" + name + " cannot be modified.");
+		
 	}
 	
 	/*

@@ -58,8 +58,14 @@ public class RSDB extends JavaPlugin {
 			if(args.length == 1) {
 				debuggers.put(player.getUniqueId(), new Debugger(player, this));
 				return true;
-			} else {
-				player.sendMessage(prefix + "Too many arguments. Use \"/rsdb create\".");
+			} else if(args.length == 2) {
+				Debugger tmp = Debugger.createDebugger(player, this, args[1]);
+				if(tmp != null) {
+					debuggers.put(player.getUniqueId(), tmp);
+				}
+			}
+			else {
+				player.sendMessage(prefix + "Too many arguments. Use \"/rsdb create\" or \"/rsdb create <script_url>\".");
 			}
 		} else {
 			if(!debuggers.containsKey(player.getUniqueId())) {

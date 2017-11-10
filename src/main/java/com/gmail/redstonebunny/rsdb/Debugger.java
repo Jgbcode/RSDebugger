@@ -6,6 +6,7 @@ import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 
 import com.gmail.redstonebunny.rsdb.script.Parser;
+import com.gmail.redstonebunny.rsdb.script.Script;
 import com.gmail.redstonebunny.rsdb.variables.Clock;
 import com.gmail.redstonebunny.rsdb.variables.Operator;
 import com.gmail.redstonebunny.rsdb.variables.Output;
@@ -21,6 +22,26 @@ public class Debugger {
 	private Player p;	// The player who this debugger belongs to
 	private RSDB rsdb;	// The main plugin instance
 	private HashMap<String, Variable> variables;	// A map for converting variable names into variable objects
+	private Script script;
+	
+	public static Debugger createDebugger(Player player, RSDB rsdb, String url) {
+		HashMap<String, Variable> vars = new HashMap<String, Variable>();
+		vars.put("#PIPE_SIZE", new Variable("#PIPE_SIZE", 10, player));
+		vars.put("#CLOCK", null);
+		vars.put("#RESET", null);
+		Script script = Script.createScript(url, player, vars);
+		if(script == null)
+			return null;
+		return new Debugger(player, rsdb, vars, script);
+	}
+	
+	private Debugger(Player player, RSDB rsdb, HashMap<String, Variable> variables, Script script) {
+		this.p = player;
+		this.rsdb = rsdb;
+		this.variables = variables;
+		this.script = script;
+		player.sendMessage(RSDB.successPrefix + "Successfully created a new debugger using a script.");
+	}
 	
 	/*
 	 * 	Parameters:
@@ -159,7 +180,7 @@ public class Debugger {
 	private void commandSet(String args[]) {
 		if(args.length == 2) {
 			if(args[1].equals("#CLOCK")) {
-				Clock tmp = Clock.createClock(rsdb, p, variables.get("#PIPE_SIZE"), variables);
+				Clock tmp = Clock.createClock(rsdb, p, variables.get("#PIPE_SIZE"), variables, script);
 				if(tmp != null)
 					 variables.put("#CLOCK", tmp);
 			} else if(args[1].equals("#RESET")) {
@@ -171,7 +192,7 @@ public class Debugger {
 				p.sendMessage(RSDB.prefix + "Unknown component: \"" + args[1] + "\".");
 			}
 		} else if(args.length == 3 && (args[1].startsWith("$") || args[1].startsWith("@"))) {
-			Integer tmp = Parser.getValue(args[2], variables);
+			Integer tmp = Parser.getValue(args[2], variables, p);
 			if(tmp == null) {
 				p.sendMessage(RSDB.prefix + "Failed to set variable: Illegal value.");
 			}
@@ -249,7 +270,7 @@ public class Debugger {
 			}
 		} else if(args.length == 2) {
 			if(!variables.containsKey(args[1])) {
-				Integer value = Parser.evaluateExpression(args[1], variables);
+				Integer value = Parser.evaluateExpression(args[1], variables, p);
 				
 				if(value != null) {
 					p.sendMessage(RSDB.prefix + ChatColor.GOLD + args[1] + ChatColor.GRAY + " = " + value + " : " + Integer.toBinaryString(value) + "b");
