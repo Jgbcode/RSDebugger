@@ -7,6 +7,7 @@ import org.bukkit.material.RedstoneWire;
 
 import com.gmail.redstonebunny.rsdb.RSDB;
 import com.gmail.redstonebunny.rsdb.WorldEditHelper;
+import com.gmail.redstonebunny.rsdb.script.Script;
 import com.sk89q.worldedit.bukkit.selections.Selection;
 
 /*
@@ -16,6 +17,7 @@ import com.sk89q.worldedit.bukkit.selections.Selection;
 public class Reset extends Output {
 	// The player who created this reset
 	private Player p;
+	private Script script;
 	
 	/*
 	 * 	Parameters:
@@ -26,7 +28,42 @@ public class Reset extends Output {
 	 * 	Returns:
 	 * 		A reset object or null if the provided arguments were invalid
 	 */
-	public static Reset createReset(RSDB rsdb, Player p, Variable size) {
+	public static Reset createReset(RSDB rsdb, Player p, Variable size, Location l, Script script) {
+		boolean foundClock = false;
+		for(int i = 0; i < surround.length; i++) {
+			Location tmp = l.clone().add(surround[i]);
+			if(tmp.getBlock().getState().getData() instanceof RedstoneWire) {
+				foundClock = true;
+				break;
+			}
+		}
+		
+		if(!foundClock) {
+			p.sendMessage(RSDB.prefix + "Unable to create reset: The selected block is not connected to a redstone wire.");
+			return null;
+		}
+		
+		if(l.getBlock().getType().equals(Material.GLASS)) {
+			Reset r = new Reset(l, rsdb, p, size, script);
+			p.sendMessage(RSDB.successPrefix + "Successfully created a reset:");
+			r.printLocation();
+			return r;
+		} else {
+			p.sendMessage(RSDB.prefix + "Unable to create reset: The reset selection must be a block of glass.");
+			return null;
+		}
+	}
+	
+	/*
+	 * 	Parameters:
+	 * 		RSDB rsdb - the main plugin instance
+	 * 		Player p - the player who is creating this reset
+	 * 		Variable size - the #PIPE_SIZE variable
+	 * 
+	 * 	Returns:
+	 * 		A reset object or null if the provided arguments were invalid
+	 */
+	public static Reset createReset(RSDB rsdb, Player p, Variable size, Script script) {
 		Selection s = WorldEditHelper.getSelection(p);
 		
 		if(s == null)
@@ -55,7 +92,7 @@ public class Reset extends Output {
 		}
 		
 		if(l.getBlock().getType().equals(Material.GLASS)) {
-			Reset r = new Reset(l, rsdb, p, size);
+			Reset r = new Reset(l, rsdb, p, size, script);
 			p.sendMessage(RSDB.successPrefix + "Successfully created a reset:");
 			r.printLocation();
 			return r;
@@ -72,9 +109,10 @@ public class Reset extends Output {
 	 * 		Player p - the player who is creating this reset
 	 * 		Variable size - the #PIPE_SIZE variable
 	 */
-	protected Reset(Location l, RSDB rsdb, Player p, Variable size) {
+	protected Reset(Location l, RSDB rsdb, Player p, Variable size, Script script) {
 		super(l, rsdb, p, "#RESET", size, Material.GLASS);
 		this.p = p;
+		this.script = script;
 	}
 
 	/*
@@ -101,6 +139,9 @@ public class Reset extends Output {
 	 * 		True if the pulse was successful
 	 */
 	public boolean pulse(int numTicks) {
-		return super.pulse(numTicks, Material.GLASS);
+		if(super.pulse(numTicks, Material.GLASS)) {
+			return script == null || script.executeScriptSection("restart");
+		}
+		return false;
 	}
 }

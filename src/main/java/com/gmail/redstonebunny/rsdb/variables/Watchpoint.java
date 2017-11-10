@@ -70,6 +70,8 @@ public class Watchpoint extends Variable{
 	public static Watchpoint createWatchpoint(String name, Player p, Variable size, ArrayList<Location> l) {
 		for(Location loc : l) {
 			if(!(loc.getBlock().getState().getData() instanceof Redstone)) {
+				p.sendMessage(RSDB.errorPrefix + "Location \"x=" + loc.getBlockX() + " y=" + loc.getBlockY() + " z=" + loc.getBlockZ() + 
+						"\" of watchpoint \"" + name + "\" is not a redstone component.");
 				return null;
 			}
 		}

@@ -29,7 +29,7 @@ public class Debugger {
 		vars.put("#PIPE_SIZE", new Variable("#PIPE_SIZE", 10, player));
 		vars.put("#CLOCK", null);
 		vars.put("#RESET", null);
-		Script script = Script.createScript(url, player, vars);
+		Script script = Script.createScript(url, player, vars, rsdb);
 		if(script == null)
 			return null;
 		return new Debugger(player, rsdb, vars, script);
@@ -89,9 +89,26 @@ public class Debugger {
 			commandStep(args);
 		} else if(args[0].equalsIgnoreCase("reset")) {
 			commandReset(args);
+		} else if(args[0].equalsIgnoreCase("genscript")) {
+			commandGenScript(args);
 		}
 		else {
 			p.sendMessage(RSDB.prefix + "Unknown command \"" + args[0] + "\".");
+		}
+	}
+	
+	private void commandGenScript(String args[]) {
+		if(args.length == 1) {
+			if(script == null) {
+				Script script = new Script(p, variables, rsdb);
+				script.genScript();
+			}
+			else {
+				script.genScript();
+			}
+		}
+		else {
+			p.sendMessage(RSDB.prefix + "Invalid format. Use \"/rsdb genscript\".");
 		}
 	}
 	
@@ -184,7 +201,7 @@ public class Debugger {
 				if(tmp != null)
 					 variables.put("#CLOCK", tmp);
 			} else if(args[1].equals("#RESET")) {
-				Reset tmp = Reset.createReset(rsdb, p, variables.get("#PIPE_SIZE"));
+				Reset tmp = Reset.createReset(rsdb, p, variables.get("#PIPE_SIZE"), script);
 				if(tmp != null)
 					variables.put("#RESET", tmp);
 			} 

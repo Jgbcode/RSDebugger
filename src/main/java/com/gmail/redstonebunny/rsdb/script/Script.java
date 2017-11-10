@@ -13,6 +13,7 @@ import javax.xml.parsers.ParserConfigurationException;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.w3c.dom.Document;
+import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
@@ -20,6 +21,8 @@ import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 
 import com.gmail.redstonebunny.rsdb.RSDB;
+import com.gmail.redstonebunny.rsdb.variables.Clock;
+import com.gmail.redstonebunny.rsdb.variables.Reset;
 import com.gmail.redstonebunny.rsdb.variables.Variable;
 import com.gmail.redstonebunny.rsdb.variables.Watchpoint;
 
@@ -28,9 +31,10 @@ import com.gmail.redstonebunny.rsdb.variables.Watchpoint;
  */
 
 public class Script {
-	Document xml;
-	Player p;
-	HashMap<String, Variable> vars;
+	private RSDB rsdb;
+	private Document xml;
+	private Player p;
+	private HashMap<String, Variable> vars;
 	
 	/*
 	 * 	Parameters:
@@ -40,7 +44,7 @@ public class Script {
 	 * 	Returns:
 	 * 		A script object or null if the script could not be loaded
 	 */
-	public static Script createScript(String url, Player p, HashMap<String, Variable> vars) {
+	public static Script createScript(String url, Player p, HashMap<String, Variable> vars, RSDB rsdb) {
 		String str = ScriptInterface.getScript(url, p);
 		if(str == null)
 			return null;
@@ -49,7 +53,11 @@ public class Script {
 		if(d == null)
 			return null;
 		
-		return new Script(d, p, vars);
+		Script s = new Script(d, p, vars, rsdb);
+		
+		if(s.executeScriptSection("init"))
+			return s;
+		return null;
 	}
 	
 	private static Document parseXML(String xml, Player p) {
@@ -82,28 +90,88 @@ public class Script {
 		}
 	}
 	
-	public Script(Document xml, Player p, HashMap<String, Variable> vars) {
+	public Script(Player p, HashMap<String, Variable> vars, RSDB rsdb) {
+		this.xml = null;
+		this.p = p;
+		this.vars = vars;
+		this.rsdb = rsdb;
+	}
+	
+	private Script(Document xml, Player p, HashMap<String, Variable> vars, RSDB rsdb) {
 		this.xml = xml;
 		this.p = p;
 		this.vars = vars;
+		this.rsdb = rsdb;
 	}
 	
-	public boolean executeSciptSection(String name) {
+	public boolean genScript() {
+		String script = "<rsdb>\n\t<init>\n";
+		boolean b = false;
+		for(Variable v : vars.values()) {
+			if(v instanceof Watchpoint) {
+				script += "\t\t<watch name=\"" + v.getName() + "\">\n";
+				for(Location l : v.getLocation())
+					script += genLocation(l);
+				script += "\t\t</watch>\n";
+				b = true;
+			} else if(v instanceof Clock) {
+				script += "\t\t<clock>\n";
+				for(Location l : v.getLocation())
+					script += genLocation(l);
+				script += "\t\t</clock>\n";
+				b = true;
+			} else if(v instanceof Reset) {
+				script += "\t\t<reset>\n";
+				for(Location l : v.getLocation())
+					script += genLocation(l);
+				script += "\t\t</reset>\n";
+				b = true;
+			}
+		}
+		if(!b) {
+			script += "\t\t<!-- ENTER INITIATION CODE HERE -->\n";
+		}
+		script += "\t</init>\n";
+		script += "\t<loop>\n";
+		script += "\t\t<!-- ENTER LOOP CODE HERE -->\n";
+		script += "\t</loop>\n";
+		script += "\t<restart>\n";
+		script += "\t\t<!-- ENTER RESET CODE HERE -->\n";
+		script += "\t</restart>\n";
+		script += "</rsdb>";
+		
+		return ScriptInterface.sendScript(script, p);
+	}
+	
+	private String genLocation(Location l) {
+		return "\t\t\t<location world=\"" + l.getWorld().getUID() + "\" x=\"" + l.getBlockX() + "\" y=\"" + l.getBlockY() + "\" z=\"" + l.getBlockZ() + "\"/>\n";
+	}
+	
+	public boolean executeScriptSection(String name) {
 		NodeList nodes = xml.getDocumentElement().getElementsByTagName(name);
 		if(nodes.getLength() == 1) {
-			return executeScriptSection(nodes.item(1));
+			return executeScriptSection(nodes.item(0));
 		}
 		return true;
 	}
 	
 	public boolean executeScriptSection(Node n) {
+		if(n == null)
+			return true;
+		
 		NodeList list = n.getChildNodes();
 		for(int i = 0; i < list.getLength(); i++) {
 			Node tmp = list.item(i);
+			
+			if(!(tmp instanceof Element))
+				continue;
+			
 			Method method;
+			System.out.println("element" + tmp.getNodeName());
 			try {
-				method = this.getClass().getMethod("element" + tmp.getNodeName(), Node.class);
+				method = this.getClass().getDeclaredMethod("element" + tmp.getNodeName(), Node.class);
 			} catch(Exception e) {
+				e.printStackTrace();
 				scriptError(tmp, "No such element \"" + tmp.getNodeName() + "\"");
 				return false;
 			}
@@ -125,6 +193,55 @@ public class Script {
 		}
 		
 		return true;
+	}
+	
+	
+	@SuppressWarnings("unused")
+	private boolean elementreset(Node n) {
+		if(n.getAttributes().getLength() == 0) {
+			if(n.getChildNodes().getLength() == 1 && n.getChildNodes().item(0).getNodeName().equals("location")) {
+				Location l = elementlocation(n.getFirstChild());
+				if(l == null)
+					return false;
+				Reset c = Reset.createReset(rsdb, p, vars.get("#PIPE_SIZE"), l, this);
+				if(c == null)
+					return false;
+				vars.put("#CLOCK", c);
+				return true;
+			}
+			else {
+				scriptError(n, "Clocks can only have a single location as their child element.");
+				return false;
+			}
+		}
+		else {
+			scriptError(n, "Illegal clock attributes.");
+			return false;
+		}
+	}
+	
+	@SuppressWarnings("unused")
+	private boolean elementclock(Node n) {
+		if(n.getAttributes().getLength() == 0) {
+			if(n.getChildNodes().getLength() == 1 && n.getChildNodes().item(0).getNodeName().equals("location")) {
+				Location l = elementlocation(n.getFirstChild());
+				if(l == null)
+					return false;
+				Clock c = Clock.createClock(rsdb, p, vars.get("#PIPE_SIZE"), vars, this, l);
+				if(c == null)
+					return false;
+				vars.put("#CLOCK", c);
+				return true;
+			}
+			else {
+				scriptError(n, "Clocks can only have a single location as their child element.");
+				return false;
+			}
+		}
+		else {
+			scriptError(n, "Illegal clock attributes.");
+			return false;
+		}
 	}
 	
 	@SuppressWarnings("unused")
@@ -153,6 +270,9 @@ public class Script {
 		if(n.getAttributes().getLength() == 1 && n.getAttributes().item(0).getNodeName().equals("name")) {
 			ArrayList<Location> locs = new ArrayList<Location>();
 			for(int i = 0; i < n.getChildNodes().getLength(); i++) {
+				if(!(n.getChildNodes().item(i) instanceof Element))
+					continue;
+				
 				if(n.getChildNodes().item(i).getNodeName().equals("location")) {
 					Location l = elementlocation(n.getChildNodes().item(i));
 					if(l == null)
@@ -161,6 +281,7 @@ public class Script {
 				}
 				else {
 					scriptError(n.getChildNodes().item(i), "All child elements of watch must be of type location.");
+					return false;
 				}
 			}
 			
@@ -184,7 +305,9 @@ public class Script {
 				Integer y = Parser.stringToInt(n.getAttributes().getNamedItem("y").getNodeValue());
 				Integer z = Parser.stringToInt(n.getAttributes().getNamedItem("z").getNodeValue());
 				if(world != null && x != null && y != null && z != null) {
-					if(world.equals(p.getWorld().getUID())) {
+					System.out.println(world);
+					System.out.println(p.getWorld().getUID());
+					if(world.equals(p.getWorld().getUID().toString())) {
 						return new Location(p.getWorld(), x, y, z);
 					} else {
 						scriptError(n, "Attempted to create a location in a world the player is not in.");
@@ -207,7 +330,18 @@ public class Script {
 	}
 	
 	private void scriptError(Node n, String error) {
-		p.sendMessage(RSDB.errorPrefix + "Script runtime error. Line: " + ((n.getUserData("linenumber") == null) ? "unknown" : n.getUserData("linenumber")) + 
-				" Error: " + error);
+		p.sendMessage(RSDB.errorPrefix + "Script runtime error at " + n.getNodeName().replaceAll("\\s", "") + ". Error: " + error);
+		String stack = "";
+		Node tmp = n;
+		while(tmp != null) {
+			stack += tmp.getNodeName() + " <- ";
+			tmp = tmp.getParentNode();
+		}
+		if(stack.length() == 0)
+			stack = "null";
+		else
+			stack = stack.substring(0, stack.length() - 4);
+		
+		p.sendMessage(RSDB.errorPrefix + "Node stack: " + stack);
 	}
 }

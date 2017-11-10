@@ -19,11 +19,6 @@ public class ScriptInterface {
 	// JPastee object to connect to pastee
 	private static JPastee pastee;
 	
-	// Prefixes
-	public static final String prefix = ChatColor.DARK_RED + "[" + ChatColor.DARK_PURPLE + "SCRIPT" + ChatColor.DARK_RED +"] " + ChatColor.GRAY;
-	public static final String successPrefix = prefix + ChatColor.GREEN;
-	public static final String errorPrefix = prefix + ChatColor.RED;
-	
 	/*
 	 * 	Parameters:
 	 * 		String script - the script
@@ -32,21 +27,24 @@ public class ScriptInterface {
 	 * 	Description:
 	 * 		Uploads this script to pastee and prints the link to the player
 	 */
-	public static void sendScript(String script, Player p) {
+	public static boolean sendScript(String script, Player p) {
 		if(pastee == null)
 			pastee = new JPastee("uYS1EZBouiieRKef0ksf6GLO6al5l1mQ9qNo2K2jq");
 		
 		Paste paste = Paste.builder()
 				.description("RSDB Script for " + p.getName())
-				.addSection(Section.builder().name("Script").contents(script).build())
+				.addSection(Section.builder().name("Script").contents(script).syntax(pastee.getSyntaxFromName("xml").get()).build())
 				.build();
 		
 		SubmitResponse resp = pastee.submit(paste);
 		
 		if(resp.isSuccess()) {
-			p.sendMessage(RSDB.prefix + successPrefix + "Successfully generated the script at " + ChatColor.GOLD + resp.getLink());
+			p.sendMessage(RSDB.successPrefix + "Successfully generated the script at " + ChatColor.GOLD + resp.getLink());
+			return true;
 		} else {
-			p.sendMessage(RSDB.prefix + errorPrefix + "Unable to generate the script: Use \"/rsdb script --dump\" to display the script via the chat.");
+			p.sendMessage(RSDB.errorPrefix + "Unable to generate the script.");
+			return false;
+			
 		}
 	}
 	
@@ -73,11 +71,11 @@ public class ScriptInterface {
 		PasteResponse resp = pastee.getPaste(url);
 		
 		if(!resp.isSuccess()) {
-			p.sendMessage(RSDB.prefix + errorPrefix + "Failed to get script. Did you enter the pastee URL correctly?");
+			p.sendMessage(RSDB.errorPrefix + "Failed to get script. Did you enter the paste.ee URL correctly?");
 			return null;
 		}
 		
-		p.sendMessage(RSDB.prefix + successPrefix + "Successfully fetched script from " + url + ".");
+		p.sendMessage(RSDB.successPrefix + "Successfully fetched script at " + url + ".");
 		
 		Paste paste = resp.getPaste();
 		Section section = paste.getSections().get(0);

@@ -27,6 +27,43 @@ public class Clock extends Output{
 	 * 		Player p - the player who is creating this clock
 	 * 		Variable size - the #PIPE_SIZE variable
 	 * 		HashMap<String, Variable> vars - the list of all variables in the current debugger
+	 * 		Location l - the location this clock is being created at
+	 * 
+	 * 	Returns:
+	 * 		A newly created clock or null if the clock could not be created
+	 */
+	public static Clock createClock(RSDB rsdb, Player p, Variable size, HashMap<String, Variable> vars, Script script, Location l) {
+		boolean foundClock = false;
+		for(int i = 0; i < surround.length; i++) {
+			Location tmp = l.clone().add(surround[i]);
+			if(tmp.getBlock().getState().getData() instanceof RedstoneWire) {
+				foundClock = true;
+				break;
+			}
+		}
+		
+		if(!foundClock) {
+			p.sendMessage(RSDB.prefix + "Unable to create clock: The selected block is not connected to a redstone wire.");
+			return null;
+		}
+		
+		if(l.getBlock().getType().equals(Material.GLASS)) {
+			Clock c = new Clock(l, rsdb, p, size, vars, script);
+			p.sendMessage(RSDB.successPrefix + "Successfully created a clock:");
+			c.printLocation();
+			return c;
+		} else {
+			p.sendMessage(RSDB.prefix + "Unable to create clock: The clock selection must be a block of glass.");
+			return null;
+		}
+	}
+	
+	/*
+	 * 	Parameters:
+	 * 		RSDB rsdb - the main plugin instance
+	 * 		Player p - the player who is creating this clock
+	 * 		Variable size - the #PIPE_SIZE variable
+	 * 		HashMap<String, Variable> vars - the list of all variables in the current debugger
 	 * 
 	 * 	Returns:
 	 * 		A newly created clock or null if the clock could not be created
@@ -99,7 +136,7 @@ public class Clock extends Output{
 				v.update();
 		}
 		
-		if(script == null || script.executeSciptSection("loop")) {
+		if(script == null || script.executeScriptSection("loop")) {
 			return super.pulse(numTicks, Material.GLASS);
 		}
 		else {
@@ -120,7 +157,7 @@ public class Clock extends Output{
 			}
 		}
 		
-		if(script != null && !script.executeSciptSection("loop")) {
+		if(script != null && !script.executeScriptSection("loop")) {
 			p.sendMessage(RSDB.errorPrefix + "Clock failed to toggle. Script error.");
 			return false;
 		}
