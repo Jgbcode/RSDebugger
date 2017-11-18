@@ -331,11 +331,14 @@ public class Debugger {
 		} else if(args[1].equals("2")) {
 			p.sendMessage(
 				RSDB.prefix + "Command Overview (" + ChatColor.DARK_GRAY + "Page 2" + ChatColor.GRAY + "): \n" +
-				RSDB.prefix + "/rsdb " + ChatColor.GOLD + "step" + ChatColor.GRAY + " - Pulses the clock a single time - /rsdb help next\n"
+				RSDB.prefix + "/rsdb " + ChatColor.GOLD + "step" + ChatColor.GRAY + " - Pulses the clock a single time - /rsdb help next\n" +
+				RSDB.prefix + "/rsdb " + ChatColor.GOLD + "reset" + ChatColor.GRAY + " - Resets the debugger - /rsdb help reset\n" +
+				RSDB.prefix + "/rsdb " + ChatColor.GOLD + "genscript" + ChatColor.GRAY + " - Generates a debugger script - /rsdb help genscript\n"
 			);
 		} else if(args[1].equalsIgnoreCase("create")){
 			p.sendMessage(
-					RSDB.prefix + "Use the command \"/rsdb create\" to create a new redstone debugger. " +
+					RSDB.prefix + "Use the command \"/rsdb create\" to create a new empty redstone debugger. Use the command \"/rsdb create <paste.ee-url>\" " +
+					" to create a debugger using a script." +
 					"This command will delete any debugger that you may currently have, including it's contents. Use with caution."
 			);
 		} else if(args[1].equalsIgnoreCase("watch")) {
@@ -369,7 +372,15 @@ public class Debugger {
 				RSDB.prefix + "Use the command \"/rsdb step\" to pulse the clock a single time with a 5 tick pulse. Use \"/rsdb step --toggle\" to toggle " +
 				"the state of the clock."
 			);
-		} 
+		} else if(args[1].equalsIgnoreCase("reset")) {
+			p.sendMessage(
+				RSDB.prefix + "Use the command \"/rsdb reset\" to reset the debugger and activate the reset output."
+			);
+		} else if(args[1].equalsIgnoreCase("genscript")) {
+			p.sendMessage(
+				RSDB.prefix + "Use the command \"/rsdb genscript\" to have your current debugging instance be converted into a XML file and uploaded to paste.ee."
+			);
+		}
 		else {
 			p.sendMessage(RSDB.prefix + "Unknown help command.");
 		}

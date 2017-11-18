@@ -10,12 +10,14 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
+import org.apache.commons.lang.StringEscapeUtils;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
+import org.w3c.dom.Text;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
@@ -48,6 +50,8 @@ public class Script {
 		String str = ScriptInterface.getScript(url, p);
 		if(str == null)
 			return null;
+		
+		str = escapeXML(str);
 		
 		Document d = parseXML(str, p);
 		if(d == null)
@@ -90,6 +94,28 @@ public class Script {
 		}
 	}
 	
+	private static String escapeXML(String xml) {
+		int index = xml.indexOf("{");
+		while(index != -1) {
+			if(index == 0 || xml.charAt(index) != '\\') {
+				int end_index = xml.indexOf("}", index + 1);
+				while(xml.charAt(end_index) == '\\')
+					end_index = xml.indexOf('}', end_index + 1);
+				// DEBUG
+				//System.out.println(xml.substring(index + 1, end_index));
+				
+				xml = xml.substring(0, index) + StringEscapeUtils.escapeXml(xml.substring(index + 1, end_index)) + xml.substring(end_index + 1);
+				index = xml.indexOf("{", end_index + 1);
+			}
+			else {
+				index = xml.indexOf("{", index + 1);
+			}
+		}
+		// DEBUG
+		//System.out.println(xml);
+		return xml;
+	}
+	
 	public Script(Player p, HashMap<String, Variable> vars, RSDB rsdb) {
 		this.xml = null;
 		this.p = p;
@@ -107,25 +133,29 @@ public class Script {
 	public boolean genScript() {
 		String script = "<rsdb>\n\t<init>\n";
 		boolean b = false;
+		int count = 0;
 		for(Variable v : vars.values()) {
 			if(v instanceof Watchpoint) {
-				script += "\t\t<watch name=\"" + v.getName() + "\">\n";
+				script += "\t\t<watch name=\"" + v.getName() + "\" id=\"" + count + "\">\n";
 				for(Location l : v.getLocation())
 					script += genLocation(l);
 				script += "\t\t</watch>\n";
 				b = true;
+				count++;
 			} else if(v instanceof Clock) {
-				script += "\t\t<clock>\n";
+				script += "\t\t<clock id=\"" + count + "\">\n";
 				for(Location l : v.getLocation())
 					script += genLocation(l);
 				script += "\t\t</clock>\n";
 				b = true;
+				count++;
 			} else if(v instanceof Reset) {
-				script += "\t\t<reset>\n";
+				script += "\t\t<reset id=\"" + count + "\">\n";
 				for(Location l : v.getLocation())
 					script += genLocation(l);
 				script += "\t\t</reset>\n";
 				b = true;
+				count++;
 			}
 		}
 		if(!b) {
@@ -167,7 +197,6 @@ public class Script {
 				continue;
 			
 			Method method;
-			System.out.println("element" + tmp.getNodeName());
 			try {
 				method = this.getClass().getDeclaredMethod("element" + tmp.getNodeName(), Node.class);
 			} catch(Exception e) {
@@ -187,6 +216,7 @@ public class Script {
 					scriptError(n, "Illegal return value.");
 				}
 			} catch(Exception e) {
+				e.printStackTrace();
 				scriptError(tmp, "Unable to process element \"" + tmp.getNodeName() + "\"");
 				return false;
 			}
@@ -195,58 +225,75 @@ public class Script {
 		return true;
 	}
 	
+	@SuppressWarnings("unused")
+	private boolean elementassert(Node n) {
+		if(n.getChildNodes().getLength() == 1 && n.getChildNodes().item(0) instanceof Text) {
+			String text = n.getChildNodes().item(0).getTextContent();
+			Integer result = Parser.evaluateExpression(text, vars, p);
+			if(result == null) {
+				scriptError(n, "Could not parse expression.");
+				return false;
+			} else if(result == 0) {
+				p.sendMessage(RSDB.prefix + "Assertion failed: id=" + 
+						((n.getAttributes().getNamedItem("id") == null) ? "null" : n.getAttributes().getNamedItem("id").getTextContent()) + 
+						"\n" + RSDB.prefix + "Assertion: " + text + " = " + result);
+				return false;
+			}
+			return true;
+		}
+		else {
+			scriptError(n, "Illegal assertion definition.");
+			return false;
+		}
+	}
 	
 	@SuppressWarnings("unused")
 	private boolean elementreset(Node n) {
-		if(n.getAttributes().getLength() == 0) {
-			if(n.getChildNodes().getLength() == 1 && n.getChildNodes().item(0).getNodeName().equals("location")) {
-				Location l = elementlocation(n.getFirstChild());
-				if(l == null)
-					return false;
-				Reset c = Reset.createReset(rsdb, p, vars.get("#PIPE_SIZE"), l, this);
-				if(c == null)
-					return false;
-				vars.put("#CLOCK", c);
-				return true;
-			}
-			else {
-				scriptError(n, "Clocks can only have a single location as their child element.");
+		if(removeText(n)) {
+			p.sendMessage(RSDB.prefix + "Warning: Found text inside reset declaration. The text is being removed.");
+		}
+		
+		if(n.getChildNodes().getLength() == 1 && n.getChildNodes().item(0).getNodeName().equals("location")) {
+			Location l = elementlocation(n.getFirstChild());
+			if(l == null)
 				return false;
-			}
+			Reset c = Reset.createReset(rsdb, p, vars.get("#PIPE_SIZE"), l, this);
+			if(c == null)
+				return false;
+			vars.put("#RESET", c);
+			return true;
 		}
 		else {
-			scriptError(n, "Illegal clock attributes.");
+			scriptError(n, "Clocks can only have a single location as their child element.");
 			return false;
 		}
 	}
 	
 	@SuppressWarnings("unused")
 	private boolean elementclock(Node n) {
-		if(n.getAttributes().getLength() == 0) {
-			if(n.getChildNodes().getLength() == 1 && n.getChildNodes().item(0).getNodeName().equals("location")) {
-				Location l = elementlocation(n.getFirstChild());
-				if(l == null)
-					return false;
-				Clock c = Clock.createClock(rsdb, p, vars.get("#PIPE_SIZE"), vars, this, l);
-				if(c == null)
-					return false;
-				vars.put("#CLOCK", c);
-				return true;
-			}
-			else {
-				scriptError(n, "Clocks can only have a single location as their child element.");
+		if(removeText(n)) {
+			p.sendMessage(RSDB.prefix + "Warning: Found text inside clock declaration. The text is being removed.");
+		}
+		
+		if(n.getChildNodes().getLength() == 1 && n.getChildNodes().item(0).getNodeName().equals("location")) {
+			Location l = elementlocation(n.getFirstChild());
+			if(l == null)
 				return false;
-			}
+			Clock c = Clock.createClock(rsdb, p, vars.get("#PIPE_SIZE"), vars, this, l);
+			if(c == null)
+				return false;
+			vars.put("#CLOCK", c);
+			return true;
 		}
 		else {
-			scriptError(n, "Illegal clock attributes.");
+			scriptError(n, "Clocks can only have a single location as their child element.");
 			return false;
 		}
 	}
 	
 	@SuppressWarnings("unused")
 	private boolean elementif(Node n) {
-		if(n.getAttributes().getLength() == 1 && n.getAttributes().item(0).getNodeName().equals("statement")) {
+		if(n.getAttributes().getLength() > 1) {
 			String statement = n.getAttributes().item(0).getNodeValue();
 			Integer result = Parser.evaluateExpression(statement, vars, p);
 			if(result == null) {
@@ -267,7 +314,7 @@ public class Script {
 	
 	@SuppressWarnings("unused")
 	private boolean elementwatch(Node n) {
-		if(n.getAttributes().getLength() == 1 && n.getAttributes().item(0).getNodeName().equals("name")) {
+		if(n.getAttributes().getLength() > 0 && n.getAttributes().getNamedItem("name") != null) {
 			ArrayList<Location> locs = new ArrayList<Location>();
 			for(int i = 0; i < n.getChildNodes().getLength(); i++) {
 				if(!(n.getChildNodes().item(i) instanceof Element))
@@ -305,8 +352,6 @@ public class Script {
 				Integer y = Parser.stringToInt(n.getAttributes().getNamedItem("y").getNodeValue());
 				Integer z = Parser.stringToInt(n.getAttributes().getNamedItem("z").getNodeValue());
 				if(world != null && x != null && y != null && z != null) {
-					System.out.println(world);
-					System.out.println(p.getWorld().getUID());
 					if(world.equals(p.getWorld().getUID().toString())) {
 						return new Location(p.getWorld(), x, y, z);
 					} else {
@@ -329,19 +374,29 @@ public class Script {
 		}
 	}
 	
-	private void scriptError(Node n, String error) {
-		p.sendMessage(RSDB.errorPrefix + "Script runtime error at " + n.getNodeName().replaceAll("\\s", "") + ". Error: " + error);
-		String stack = "";
-		Node tmp = n;
-		while(tmp != null) {
-			stack += tmp.getNodeName() + " <- ";
-			tmp = tmp.getParentNode();
+	private boolean removeText(Node n) {
+		boolean found = false;
+		for(int i = 0; i < n.getChildNodes().getLength();) {
+			if(n.getChildNodes().item(i) instanceof Text) {
+				found = found || ((Text)n.getChildNodes().item(i)).getTextContent().replaceAll("\\s", "").length() > 0;
+				n.removeChild(n.getChildNodes().item(i));
+			}
+			else {
+				i++;
+			}
 		}
-		if(stack.length() == 0)
-			stack = "null";
-		else
-			stack = stack.substring(0, stack.length() - 4);
 		
-		p.sendMessage(RSDB.errorPrefix + "Node stack: " + stack);
+		return found;
+	}
+	
+	private void scriptError(Node n, String error) {
+		if(n.getAttributes().getNamedItem("id") == null) {
+			p.sendMessage(RSDB.errorPrefix + "Script runtime error at " + n.getNodeName().replaceAll("\\s", "") + " id=null" + 
+				". Error: " + error);
+		}
+		else {
+			p.sendMessage(RSDB.errorPrefix + "Script runtime error at " + n.getNodeName().replaceAll("\\s", "") + " id=" + 
+				n.getAttributes().getNamedItem("id").getNodeValue() + ". Error: " + error);
+		}
 	}
 }

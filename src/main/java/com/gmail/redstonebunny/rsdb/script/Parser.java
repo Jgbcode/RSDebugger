@@ -31,7 +31,9 @@ public class Parser {
 	
 	// A list of all characters that may be the second character in an operator
 	// Used to differentiate between operators such as "==" and "="
-	private static final char[] operatorLastChars = {'<', '>', '=', '&', '|'};
+	private static final String[] operatorsTwo = {
+			"<<", ">>", "<=", ">=", "==", "!=", "&&", "||"	
+	};
 	
 	// A hashmap of all operators for converting into integers
 	private static final HashMap<String, Integer> operatorStrings;
@@ -74,11 +76,8 @@ public class Parser {
 		if(str.length() == 0)
 			return null;
 		
-		if(!str.startsWith("$")) {
-			Integer tmp;
-			if((tmp = stringToInt(str)) != null)
-				return tmp;
-
+		if(str.charAt(0) != '$') {
+			return stringToInt(str);
 		}
 		
 		str = str.substring(1);
@@ -88,10 +87,20 @@ public class Parser {
 		Integer pos = -1;
 		
 		if(b != -1 && e != -1) {
-			pos = evaluateExpression(str.substring(b + 1, e), vars, p);
-			if(pos == null)
-				return null;
+			String index = str.substring(b + 1, e);
 			str = str.substring(0, b) + str.substring(e + 1);
+			if(index.equalsIgnoreCase("size")) {
+				Variable v = vars.get(str);
+				if(v == null)
+					return null;
+				else
+					return v.getNumberOfBits();
+			}
+			else {
+				pos = evaluateExpression(index, vars, p);
+				if(pos == null)
+					return null;
+			}
 		}
 		
 		Variable v = vars.get(str);
@@ -139,7 +148,7 @@ public class Parser {
 			Integer tmp = evaluateExpression(str.substring(index_p1 + 1, index_p2), vars, p);
 			if(tmp == null)
 				return null;
-			str = str.replaceFirst(str.substring(index_p1, index_p2 + 1), Integer.toString(tmp));
+			str = str.substring(0, index_p1) + tmp + str.substring(index_p2 + 1);
 			index_p1 = str.indexOf("(");
 		}
 		
@@ -166,12 +175,13 @@ public class Parser {
 						bracketCount++;
 					if(str.charAt(k) == ']')
 						bracketCount--;
-					if(bracketCount == 0 && str.length() >= k + operators[i][j].length() && (str.substring(k, k+operators[i][j].length()).equals(operators[i][j])) && 
-							!isOperatorLastChar(str.charAt(k + operators[i][j].length()))) {
-						if(k > index) {
-							op = operators[i][j];
-							index = k;
-						}
+					if(bracketCount == 0 && str.length() >= k + operators[i][j].length() && (str.substring(k, k+operators[i][j].length()).equals(operators[i][j]))) {
+						if(operators[i][j].length() == 2 || isOperatorSingle(str, k)) {
+							if(k > index) {
+								op = operators[i][j];
+								index = k;
+							}
+						} 
 					}
 				}
 			}
@@ -179,15 +189,22 @@ public class Parser {
 				break;
 			}
 		}
-
 		
 		if(index == -1)
 			return getValue(str, vars, p);
 		
+		// DEBUG:
+		//System.out.println("String: " + str);
+		//System.out.println("Op: " + op);
+		
 		Integer arg1 = evaluateExpressionRecurse(str.substring(0, index), vars, p);
 		Integer arg2 = evaluateExpressionRecurse(str.substring(index + op.length()), vars, p);
 		
-		if(op.equals("!") || op.equals("~") || op.equals("=")) {
+		// DEBUG:
+		//System.out.println("Arg1: " + str.substring(0, index) + " = " + arg1);
+		//System.out.println("Arg2: " + str.substring(index + op.length()) + " = " + arg2);
+		
+		if(op.equals("!") || op.equals("~") || op.equals("=") || op.equals('-')) {
 			if(arg2 == null)
 				return null;
 		}
@@ -211,7 +228,10 @@ public class Parser {
 		case("-") :
 			return arg1 - arg2;
 		case("<<") :
-			return arg1 << arg2;
+			if(arg1 == null)
+				return -arg2;
+			else
+				return arg1 << arg2;
 		case(">>") :
 			return arg1 >> arg2;
 		case(">") :
@@ -276,13 +296,22 @@ public class Parser {
 	 * 	Returns:
 	 * 		True if the character is in operatorLastChars
 	 */
-	private static boolean isOperatorLastChar(char c) {
-		for(int i = 0; i < operatorLastChars.length; i++) {
-			if(c == operatorLastChars[i])
-				return true;
+	private static boolean isOperatorSingle(String str, int index) {
+		if(index > 0) {
+			for(String s : operatorsTwo) {
+				if(s.equals(str.substring(index-1, index+1)))
+					return false;
+			}
 		}
 		
-		return false;
+		if(index < str.length() - 1) {
+			for(String s : operatorsTwo) {
+				if(s.equals(str.substring(index, index+2)))
+					return false;
+			}
+		}
+		
+		return true;
 	}
 	
 	/*

@@ -199,7 +199,7 @@ public class Variable {
 		if(l != null) {
 			return l.size();
 		}
-		return 1;
+		return 32;
 	}
 	
 	/*

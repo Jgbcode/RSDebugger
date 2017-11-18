@@ -45,8 +45,6 @@ public class Reset extends Output {
 		
 		if(l.getBlock().getType().equals(Material.GLASS)) {
 			Reset r = new Reset(l, rsdb, p, size, script);
-			p.sendMessage(RSDB.successPrefix + "Successfully created a reset:");
-			r.printLocation();
 			return r;
 		} else {
 			p.sendMessage(RSDB.prefix + "Unable to create reset: The reset selection must be a block of glass.");

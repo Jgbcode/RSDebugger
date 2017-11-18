@@ -49,8 +49,6 @@ public class Clock extends Output{
 		
 		if(l.getBlock().getType().equals(Material.GLASS)) {
 			Clock c = new Clock(l, rsdb, p, size, vars, script);
-			p.sendMessage(RSDB.successPrefix + "Successfully created a clock:");
-			c.printLocation();
 			return c;
 		} else {
 			p.sendMessage(RSDB.prefix + "Unable to create clock: The clock selection must be a block of glass.");
