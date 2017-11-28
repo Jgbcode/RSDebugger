@@ -168,7 +168,11 @@ public class Debugger {
 	 */
 	private void commandStep(String args[]) {
 		if(variables.get("#CLOCK") == null) {
-			p.sendMessage(RSDB.prefix + "You cannot use the step command without creating a clock.");
+			if(script == null) {
+				p.sendMessage(RSDB.prefix + "No valid clock or loop script.");
+			} else if (script.executeScriptSection("loop")){
+				p.sendMessage(RSDB.successPrefix + "Passed loop script.");
+			}
 			return;
 		}
 		

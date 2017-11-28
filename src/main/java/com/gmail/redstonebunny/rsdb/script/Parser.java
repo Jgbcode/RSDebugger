@@ -21,9 +21,9 @@ public class Parser {
 			{"<<", ">>"},
 			{"<", "<=", ">", ">="},
 			{"==", "!=",},
-			{"&"},
-			{"^"},
-			{"|"},
+			{"&", "~&"},
+			{"^", "~^"},
+			{"|", "~|"},
 			{"&&"},
 			{"||"},
 			{"="}
@@ -32,7 +32,7 @@ public class Parser {
 	// A list of all characters that may be the second character in an operator
 	// Used to differentiate between operators such as "==" and "="
 	private static final String[] operatorsTwo = {
-			"<<", ">>", "<=", ">=", "==", "!=", "&&", "||"	
+			"<<", ">>", "<=", ">=", "==", "!=", "~&", "~^", "~|", "&&", "||"
 	};
 	
 	// A hashmap of all operators for converting into integers
@@ -55,11 +55,14 @@ public class Parser {
 		operatorStrings.put("==", 13);
 		operatorStrings.put("!=", 14);
 		operatorStrings.put("&", 15);
-		operatorStrings.put("^", 16);
-		operatorStrings.put("|", 17);
-		operatorStrings.put("&&", 18);
-		operatorStrings.put("||", 19);
-		operatorStrings.put("=", 20);
+		operatorStrings.put("~&", 16);
+		operatorStrings.put("^", 17);
+		operatorStrings.put("~^", 18);
+		operatorStrings.put("|", 19);
+		operatorStrings.put("~|", 20);
+		operatorStrings.put("&&", 21);
+		operatorStrings.put("||", 22);
+		operatorStrings.put("=", 23);
 	}
 	
 	/*
@@ -73,6 +76,9 @@ public class Parser {
 	 *		Returns null if there was an error
 	 */
 	public static Integer getValue(String str, HashMap<String, Variable> vars, Player p) {
+		// DEBUG
+		System.out.println(str);
+		
 		if(str.length() == 0)
 			return null;
 		
@@ -103,13 +109,17 @@ public class Parser {
 			}
 		}
 		
+		System.out.println(str + " : " + pos);
+		
 		Variable v = vars.get(str);
 		if(v == null)
 			return null;
 		
+		System.out.println(v.getPastValue(pos));
+		
 		if(pos == -1)
 			return v.getValue();
-		else if(pos >= 0 && pos < v.getSize()) 
+		else if(pos >= 0 && pos < v.getSize() + 1) 
 			return v.getPastValue(pos);
 		else
 			return null;
@@ -124,6 +134,9 @@ public class Parser {
 	 * 		An integer representing the value of the expression or null if the expression was unable to be parsed
 	 */
 	public static Integer evaluateExpression(String str, HashMap<String, Variable> vars, Player p) {
+		// DEBUG
+		//System.out.println(str);
+		
 		str = str.replaceAll("\\s", "");
 		int index_a1 = str.indexOf('@');
 		while(index_a1 != -1) {
@@ -164,6 +177,10 @@ public class Parser {
 	 * 		An integer representing the value of the expression or null if the expression was unable to be parsed
 	 */
 	private static Integer evaluateExpressionRecurse(String str, HashMap<String, Variable> vars, Player p) {
+		Integer val = getValue(str, vars, p);
+		if(val != null)
+			return val;
+		
 		String op = "";
 		int index = -1;
 		
@@ -191,7 +208,7 @@ public class Parser {
 		}
 		
 		if(index == -1)
-			return getValue(str, vars, p);
+			return null;
 		
 		// DEBUG:
 		//System.out.println("String: " + str);
@@ -248,10 +265,16 @@ public class Parser {
 			return (arg1 != arg2) ? 1 : 0;
 		case("&") :
 			return arg1 & arg2;
+		case("~&") :
+			return ~(arg1 & arg2);
 		case("^") :
 			return arg1 ^ arg2;
+		case("~^") :
+			return ~(arg1 ^ arg2);
 		case("|") :
 			return arg1 | arg2;
+		case("~|") :
+			return ~(arg1 | arg2);
 		case("&&") :
 			return (arg1 != 0 && arg2 != 0) ? 1 : 0;
 		case("||") :
@@ -260,14 +283,14 @@ public class Parser {
 			String var = str.substring(0, index);
 			if(var.startsWith("$")) {
 				if(var.charAt(1) == '#') {
-					if(vars.containsKey(var.substring(1))) {
+					if(vars.get(var.substring(1)) != null) {
 						vars.get(var.substring(1)).setValue(arg2);
 					}
 					else {
 						return null;
 					}
 				} else {
-					if(vars.containsKey(var.substring(1))) {
+					if(vars.get(var.substring(1)) != null) {
 						vars.get(var.substring(1)).setValue(arg2);
 					} else if(Variable.isLegalVarName(var.substring(1))) {
 						Variable tmp = new Variable(var.substring(1), vars.get("#PIPE_SIZE"), p);
@@ -277,6 +300,17 @@ public class Parser {
 					else {
 						return null;
 					}
+				}
+			} else if(var.startsWith("@")) {
+				if(vars.get(var) == null) {
+					Operator o = Operator.createOperator(var, vars.get("#PIPE_SIZE"), p, 0);
+					if(o == null)
+						return null;
+					o.setValue(arg2);
+					vars.put(var, o);
+				}
+				else {
+					vars.get(var).setValue(arg2);
 				}
 			}
 			else {

@@ -7,10 +7,11 @@ import com.gmail.redstonebunny.rsdb.RSDB;
 
 public class Operator extends Variable {
 
-	private static final String[] operators = {"!", "~", "*", "/", "%", "+", "-", "<<", ">>", "<", "<=", ">", ">=", "==", "!=", "&", "^", "|", "&&", "||", "=" };
+	private static final String[] operators = {"!", "~", "*", "/", "%", "+", "-", "<<", ">>", "<", "<=", ">",
+			">=", "==", "!=", "&", "~&", "^", "~^", "|", "~|", "&&", "||", "=" };
 	
 	public static Operator createOperator(String name, Variable size, Player p, int value) {
-		if(name.startsWith("@") && name.endsWith("@")) {
+		if(name.length() > 2 && name.startsWith("@") && name.endsWith("@")) {
 			if(Variable.isLegalVarName(name.substring(1, name.length() - 1))) {
 				if(value >= 0 && value < operators.length) {
 					return new Operator(name, size, p, value);

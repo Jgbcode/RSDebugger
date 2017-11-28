@@ -169,6 +169,8 @@ public class Variable {
 	 * 		A past value of this variable or null if the index is out of bounds
 	 */
 	public Integer getPastValue(int index) {
+		if(index == 0)
+			return currentValue;
 		index--;
 		if(pastValues.size() <= index || index < 0)
 			return null;

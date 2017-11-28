@@ -12,6 +12,7 @@ import javax.xml.parsers.ParserConfigurationException;
 
 import org.apache.commons.lang.StringEscapeUtils;
 import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -24,6 +25,7 @@ import org.xml.sax.SAXParseException;
 
 import com.gmail.redstonebunny.rsdb.RSDB;
 import com.gmail.redstonebunny.rsdb.variables.Clock;
+import com.gmail.redstonebunny.rsdb.variables.Operator;
 import com.gmail.redstonebunny.rsdb.variables.Reset;
 import com.gmail.redstonebunny.rsdb.variables.Variable;
 import com.gmail.redstonebunny.rsdb.variables.Watchpoint;
@@ -37,6 +39,7 @@ public class Script {
 	private Document xml;
 	private Player p;
 	private HashMap<String, Variable> vars;
+	private World world;
 	
 	/*
 	 * 	Parameters:
@@ -133,7 +136,8 @@ public class Script {
 	public boolean genScript() {
 		String script = "<rsdb>\n\t<init>\n";
 		boolean b = false;
-		int count = 0;
+		int count = 1;
+		script += "\t\t<world uid=\"" + p.getWorld().getUID() + "\" id=\"0\"/>\n";
 		for(Variable v : vars.values()) {
 			if(v instanceof Watchpoint) {
 				script += "\t\t<watch name=\"" + v.getName() + "\" id=\"" + count + "\">\n";
@@ -141,6 +145,11 @@ public class Script {
 					script += genLocation(l);
 				script += "\t\t</watch>\n";
 				b = true;
+				for(Location l : v.getLocation()) {
+					if(!l.getWorld().equals(p.getWorld())) {
+						p.sendMessage(RSDB.errorPrefix + "You must be in the same world as all your watchpoints.");
+					}
+				}
 				count++;
 			} else if(v instanceof Clock) {
 				script += "\t\t<clock id=\"" + count + "\">\n";
@@ -148,6 +157,11 @@ public class Script {
 					script += genLocation(l);
 				script += "\t\t</clock>\n";
 				b = true;
+				for(Location l : v.getLocation()) {
+					if(!l.getWorld().equals(p.getWorld())) {
+						p.sendMessage(RSDB.errorPrefix + "You must be in the same world as your clock.");
+					}
+				}
 				count++;
 			} else if(v instanceof Reset) {
 				script += "\t\t<reset id=\"" + count + "\">\n";
@@ -155,6 +169,11 @@ public class Script {
 					script += genLocation(l);
 				script += "\t\t</reset>\n";
 				b = true;
+				for(Location l : v.getLocation()) {
+					if(!l.getWorld().equals(p.getWorld())) {
+						p.sendMessage(RSDB.errorPrefix + "You must be in the same world as your reset.");
+					}
+				}
 				count++;
 			}
 		}
@@ -174,7 +193,7 @@ public class Script {
 	}
 	
 	private String genLocation(Location l) {
-		return "\t\t\t<location world=\"" + l.getWorld().getUID() + "\" x=\"" + l.getBlockX() + "\" y=\"" + l.getBlockY() + "\" z=\"" + l.getBlockZ() + "\"/>\n";
+		return "\t\t\t<location x=\"" + l.getBlockX() + "\" y=\"" + l.getBlockY() + "\" z=\"" + l.getBlockZ() + "\"/>\n";
 	}
 	
 	public boolean executeScriptSection(String name) {
@@ -236,7 +255,7 @@ public class Script {
 			} else if(result == 0) {
 				p.sendMessage(RSDB.prefix + "Assertion failed: id=" + 
 						((n.getAttributes().getNamedItem("id") == null) ? "null" : n.getAttributes().getNamedItem("id").getTextContent()) + 
-						"\n" + RSDB.prefix + "Assertion: " + text + " = " + result);
+						"\n" + RSDB.prefix + "Assertion: " + text + " evaluated to " + result);
 				return false;
 			}
 			return true;
@@ -245,6 +264,182 @@ public class Script {
 			scriptError(n, "Illegal assertion definition.");
 			return false;
 		}
+	}
+	
+	@SuppressWarnings("unused")
+	private boolean elementdelete(Node n) {
+		if(removeText(n)) {
+			p.sendMessage(RSDB.prefix + "Warning: Found text inside reset declaration. The text is being removed.");
+		}
+		
+		if(n.getChildNodes().getLength() == 0) {
+			if(n.getAttributes().getLength() > 0 && n.getAttributes().getNamedItem("name") != null) {
+				if(vars.get(n.getAttributes().getNamedItem("name").getTextContent()) == null)
+				{
+					scriptError(n, "No variable named \"" + n.getAttributes().getNamedItem("name").getTextContent() + "\".");
+					return false;
+				}
+				
+				if(!n.getAttributes().getNamedItem("name").getTextContent().equals("#PIPE_SIZE")) {
+					vars.put(n.getAttributes().getNamedItem("name").getTextContent(), null);
+				}
+				else {
+					scriptError(n, "Attempting to delete #PIPE_SIZE.");
+					return false;
+				}
+			}
+			else {
+				scriptError(n, "Delete is lacking attributes.");
+				return false;
+			}
+		}
+		else {
+			scriptError(n, "Delete cannot have child elements.");
+			return false;
+		}
+		
+		return true;
+	}
+	
+	@SuppressWarnings("unused")
+	private boolean elementset(Node n) {
+		if(removeText(n)) {
+			p.sendMessage(RSDB.prefix + "Warning: Found text inside set declaration. The text is being removed.");
+		}
+		
+		if(n.getChildNodes().getLength() == 0) {
+			if(n.getAttributes().getLength() >= 2 && n.getAttributes().getNamedItem("name") != null && n.getAttributes().getNamedItem("to") != null) {
+				String name = n.getAttributes().getNamedItem("name").getTextContent();
+				Integer from = Parser.getValue(n.getAttributes().getNamedItem("to").getTextContent(), vars, p);
+				if(from == null) {
+					from = Parser.evaluateExpression(n.getAttributes().getNamedItem("to").getTextContent(), vars, p);
+					if(from == null) {
+						scriptError(n, "Unable to evaluate from expression.");
+						return false;
+					}
+				}
+				
+				if(vars.get(name) == null) {
+					if(name.startsWith("@")) {
+						Operator o = Operator.createOperator(name, vars.get("#PIPE_SIZE"), p, 0);
+						if(o == null) {
+							scriptError(n, "Error creating operator.");
+							return false;
+						}
+						
+						o.setValue(from);
+						vars.put(name, o);
+					}
+					else if(Variable.isLegalVarName(name)) {
+						Variable v = new Variable(name, vars.get("#PIPE_SIZE"), p);
+						v.setValue(from);
+						vars.put(name, v);
+					}
+					else {
+						scriptError(n, "Illegal variable name \"" + name + "\".");
+						return false;
+					}
+				}
+				else {
+					vars.get(name).setValue(from);
+				}
+			}
+			else {
+				scriptError(n, "Illegal set attributes.");
+				return false;
+			}
+		}
+		else {
+			scriptError(n, "Set elements cannot contain child nodes.");
+			return false;
+		}
+		
+		return true;
+	}
+	
+	@SuppressWarnings("unused")
+	private boolean elementmap(Node n) {
+		if(n.getAttributes().getLength() >= 2 && n.getAttributes().getNamedItem("to") != null && n.getAttributes().getNamedItem("name") != null) {
+			Integer var1 = Parser.evaluateExpression(n.getAttributes().getNamedItem("to").getTextContent(), vars, p);
+			String var2 = n.getAttributes().getNamedItem("name").getTextContent();
+			
+			Variable var;
+			
+			if(vars.get(var2) == null) {
+				if(var2.startsWith("@")) {
+					var = Operator.createOperator(var2, vars.get("#PIPE_SIZE"), p, 0);
+					if(var == null) {
+						scriptError(n, "Illegal variable operator.");
+						return false;
+					}
+				}
+				else {
+					var = new Variable(var2, vars.get("#PIPE_SIZE"), p);
+				}
+				
+				vars.put(var2, var);
+			}
+			else {
+				var = vars.get(var2);
+			}
+			
+			if(n.getChildNodes().getLength() == 1 && n.getFirstChild() instanceof Text) {
+				String text = n.getFirstChild().getTextContent();
+				String[] cases = text.split(";");
+				for(String s : cases) {
+					String[] pair = s.split(":");
+					if(pair.length != 2) {
+						scriptError(n, "Illegal map pair: " + s);
+						return false;
+					}
+					
+					Integer cmp = Parser.evaluateExpression(pair[0], vars, p);
+					if(cmp == null) {
+						scriptError(n, "Unable to evaluate map expression: " + s);
+						return false;
+					} else if(cmp == var1) {
+						Integer result = Parser.evaluateExpression(pair[1], vars, p);
+						if(result == null) {
+							scriptError(n, "Unable to evaluate map expression: " + s);
+							return false;
+						}
+						
+						var.setValue(result);
+						return true;
+					}
+				}
+			}
+			else {
+				scriptError(n, "Illegal elements contained within map.");
+				return false;
+			}
+		}
+		else {
+			scriptError(n, "Illegal map attributes.");
+			return false;
+		}
+		
+		return true;
+	}
+	
+	@SuppressWarnings("unused")
+	private boolean elementscript(Node n) {
+		if(n.getChildNodes().getLength() == 1 && n.getChildNodes().item(0) instanceof Text) {
+			String script = n.getChildNodes().item(0).getTextContent().replaceAll("\\s", "");
+			String[] exprs = script.split(";");
+			for(String expr : exprs) {
+				if(Parser.evaluateExpression(expr, vars, p) == null) {
+					scriptError(n, "Failed to evaluate: " + expr);
+					return false;
+				}
+			}
+		}
+		else {
+			scriptError(n, "Illegal elements contained within script.");
+			return false;
+		}
+		
+		return true;
 	}
 	
 	@SuppressWarnings("unused")
@@ -293,8 +488,8 @@ public class Script {
 	
 	@SuppressWarnings("unused")
 	private boolean elementif(Node n) {
-		if(n.getAttributes().getLength() > 1) {
-			String statement = n.getAttributes().item(0).getNodeValue();
+		if(n.getAttributes().getLength() > 0 && n.getAttributes().getNamedItem("expr") != null) {
+			String statement = n.getAttributes().getNamedItem("expr").getTextContent();
 			Integer result = Parser.evaluateExpression(statement, vars, p);
 			if(result == null) {
 				scriptError(n, "Unable to evaluate statement");
@@ -314,6 +509,11 @@ public class Script {
 	
 	@SuppressWarnings("unused")
 	private boolean elementwatch(Node n) {
+		if(removeText(n)) {
+			p.sendMessage(RSDB.prefix + "Found text element on watchpoint: " + n);
+			p.sendMessage(RSDB.prefix + "The text has been removed.");
+		}
+		
 		if(n.getAttributes().getLength() > 0 && n.getAttributes().getNamedItem("name") != null) {
 			ArrayList<Location> locs = new ArrayList<Location>();
 			for(int i = 0; i < n.getChildNodes().getLength(); i++) {
@@ -345,14 +545,24 @@ public class Script {
 	}
 	
 	private Location elementlocation(Node n) {
+		if(removeText(n)) {
+			p.sendMessage(RSDB.prefix + "Found text element on location: " + n);
+			p.sendMessage(RSDB.prefix + "The text has been removed.");
+		}
+		
 		if(n.getChildNodes().getLength() == 0) {
-			if(n.getAttributes().getLength() == 4) {
-				String world = n.getAttributes().getNamedItem("world").getNodeValue();
+			if(n.getAttributes().getLength() >= 3) {
 				Integer x = Parser.stringToInt(n.getAttributes().getNamedItem("x").getNodeValue());
 				Integer y = Parser.stringToInt(n.getAttributes().getNamedItem("y").getNodeValue());
 				Integer z = Parser.stringToInt(n.getAttributes().getNamedItem("z").getNodeValue());
-				if(world != null && x != null && y != null && z != null) {
-					if(world.equals(p.getWorld().getUID().toString())) {
+				
+				if(world == null) {
+					p.sendMessage(RSDB.errorPrefix + "World is null. You must set the world on the first line of the init segment.");
+					return null;
+				}
+				
+				if(x != null && y != null && z != null) {
+					if(world.equals(p.getWorld())) {
 						return new Location(p.getWorld(), x, y, z);
 					} else {
 						scriptError(n, "Attempted to create a location in a world the player is not in.");
@@ -372,6 +582,36 @@ public class Script {
 			scriptError(n, "Locations cannot have child elements.");
 			return null;
 		}
+	}
+	
+	@SuppressWarnings("unused")
+	private boolean elementworld(Node n) {
+		if(removeText(n)) {
+			p.sendMessage(RSDB.prefix + "Found text element on world: " + n);
+			p.sendMessage(RSDB.prefix + "The text has been removed.");
+		}
+		
+		if(n.getChildNodes().getLength() == 0) {
+			if(n.getAttributes().getLength() > 0 && n.getAttributes().getNamedItem("uid") != null) {
+				if(n.getAttributes().getNamedItem("uid").getTextContent().equals(p.getWorld().getUID().toString())) {
+					world = p.getWorld();
+				}
+				else {
+					scriptError(n, "The player is not in the world specified by the script.");
+					return false;
+				}
+			}
+			else {
+				scriptError(n, "Illegal world attributes.");
+				return false;
+			}
+		}
+		else {
+			scriptError(n, "Worlds cannot have child elements.");
+			return false;
+		}
+		
+		return true;
 	}
 	
 	private boolean removeText(Node n) {
