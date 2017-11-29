@@ -41,7 +41,7 @@ public class RSDB extends JavaPlugin {
 		if(!(sender instanceof Player)) {
 			sender.sendMessage(errorPrefix + "This command does not work from console.");
 			return true;
-		} else if(!((Player) sender).hasPermission("bunnyinc.rsdb")) {
+		} else if(!((Player) sender).hasPermission("rsdebugger.use")) {
 			sender.sendMessage(errorPrefix +  "You do not have permission for this command.");
 			return true;
 		}

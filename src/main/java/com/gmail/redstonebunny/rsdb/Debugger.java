@@ -98,17 +98,21 @@ public class Debugger {
 	}
 	
 	private void commandGenScript(String args[]) {
-		if(args.length == 1) {
-			if(script == null) {
-				Script script = new Script(p, variables, rsdb);
-				script.genScript();
+		if(p.hasPermission("rsdebugger.genscript")) {
+			if(args.length == 1) {
+				if(script == null) {
+					Script script = new Script(p, variables, rsdb);
+					script.genScript();
+				}
+				else {
+					script.genScript();
+				}
 			}
 			else {
-				script.genScript();
+				p.sendMessage(RSDB.prefix + "Invalid format. Use \"/rsdb genscript\".");
 			}
-		}
-		else {
-			p.sendMessage(RSDB.prefix + "Invalid format. Use \"/rsdb genscript\".");
+		} else {
+			p.sendMessage(RSDB.errorPrefix + "You do not have permission for this command.");
 		}
 	}
 	
