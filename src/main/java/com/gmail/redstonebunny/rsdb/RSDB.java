@@ -59,9 +59,14 @@ public class RSDB extends JavaPlugin {
 				debuggers.put(player.getUniqueId(), new Debugger(player, this));
 				return true;
 			} else if(args.length == 2) {
-				Debugger tmp = Debugger.createDebugger(player, this, args[1]);
-				if(tmp != null) {
-					debuggers.put(player.getUniqueId(), tmp);
+				if(player.hasPermission("rsdebugger.load")) {
+					Debugger tmp = Debugger.createDebugger(player, this, args[1]);
+					if(tmp != null) {
+						debuggers.put(player.getUniqueId(), tmp);
+					}
+				} else {
+					player.sendMessage(errorPrefix + "You do not have permission for this command.");
+					return true;
 				}
 			}
 			else {
