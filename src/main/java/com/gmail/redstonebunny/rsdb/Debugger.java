@@ -4,6 +4,7 @@ import java.util.HashMap;
 
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitRunnable;
 
 import com.gmail.redstonebunny.rsdb.script.Parser;
 import com.gmail.redstonebunny.rsdb.script.Script;
@@ -23,6 +24,7 @@ public class Debugger {
 	private RSDB rsdb;	// The main plugin instance
 	private HashMap<String, Variable> variables;	// A map for converting variable names into variable objects
 	private Script script;
+	private BukkitRunnable run;
 	
 	public static Debugger createDebugger(Player player, RSDB rsdb, String url) {
 		HashMap<String, Variable> vars = new HashMap<String, Variable>();
@@ -62,6 +64,9 @@ public class Debugger {
 	}
 	
 	public void disable() {
+		if(!run.isCancelled())
+			run.cancel();
+		
 		for(Variable v : variables.values()) {
 			if(v instanceof Output && ((Output)v).getState()) {
 				((Output)v).toggle();
@@ -91,12 +96,76 @@ public class Debugger {
 			commandReset(args);
 		} else if(args[0].equalsIgnoreCase("genscript")) {
 			commandGenScript(args);
+		} else if(args[0].equalsIgnoreCase("run")) {
+			commandRun(args);
+		} else if(args[0].equalsIgnoreCase("stop")) {
+			commandStop(args);
 		}
 		else {
 			p.sendMessage(RSDB.prefix + "Unknown command \"" + args[0] + "\".");
 		}
 	}
 	
+	private void commandStop(String args[]) {
+		if(run == null || run.isCancelled()) {
+			p.sendMessage(RSDB.prefix + "The clock is not running.");
+		} else {
+			run.cancel();
+			p.sendMessage(RSDB.prefix + "Execution halted.");
+		}
+	}
+	
+	/*
+	 * 	Parameters:
+	 * 		String args[] - command arguments
+	 * 
+	 * 	Description:
+	 * 		Services "/rsdb run" commands
+	 */
+	private void commandRun(String args[]) {
+		if(run != null && !run.isCancelled()) {
+			p.sendMessage(RSDB.prefix + "Clock is already running.");
+			return;
+		}
+		
+		if(args.length != 2) {
+			p.sendMessage(RSDB.prefix + "Invalid format. Use \"/rsdb run <ticks_per_clock>.");
+			return;
+		}
+		
+		final Integer ticks = Parser.stringToInt(args[1]);
+		
+		// DEBUG:
+		// System.out.println(args[1] + " - " + ticks);
+		
+		if(ticks == null || ticks < 2) {
+			p.sendMessage(RSDB.prefix + "Ticks per clock must be an integer greater than 1.");
+			return;
+		}
+		
+		run = new BukkitRunnable() {
+			@Override
+			public void run() {
+				if(variables.get("#CLOCK") == null) {
+					p.sendMessage(RSDB.prefix + "No valid clock. Execution terminated.");
+					this.cancel();
+				} else if(!((Clock)variables.get("#CLOCK")).pulse(ticks/2)) {
+					p.sendMessage(RSDB.prefix + "Execution halted.");
+					this.cancel();
+				}
+			}
+		};
+		
+		run.runTaskTimer(rsdb, 0, ticks);
+	}
+	
+	/*
+	 * 	Parameters:
+	 * 		String args[] - command arguments
+	 * 
+	 * 	Description:
+	 * 		Services "/rsdb genscript" commands
+	 */
 	private void commandGenScript(String args[]) {
 		if(p.hasPermission("rsdebugger.genscript")) {
 			if(args.length == 1) {
@@ -150,13 +219,15 @@ public class Debugger {
 	 */
 	private void commandReset(String args[]) {
 		if(args.length == 1) {
-			if(variables.get("#RESET") != null)
-				((Reset)variables.get("#RESET")).pulse(5);
-			
 			for(Variable v : variables.values()) {
 				if(v != null)
 					v.reset();
-			}	
+			}
+			
+			if(variables.get("#RESET") != null) {
+				if(((Reset)variables.get("#RESET")).pulse(5))
+					p.sendMessage(RSDB.successPrefix + "Successfully reset.");
+			}
 		} 
 		else {
 			p.sendMessage(RSDB.prefix + "Invalid format. Use \"/rsdb reset\".");

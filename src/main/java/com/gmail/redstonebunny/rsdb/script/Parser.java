@@ -77,7 +77,7 @@ public class Parser {
 	 */
 	public static Integer getValue(String str, HashMap<String, Variable> vars, Player p) {
 		// DEBUG
-		System.out.println(str);
+		//System.out.println(str);
 		
 		if(str.length() == 0)
 			return null;
@@ -109,13 +109,13 @@ public class Parser {
 			}
 		}
 		
-		System.out.println(str + " : " + pos);
+		//System.out.println(str + " : " + pos);
 		
 		Variable v = vars.get(str);
 		if(v == null)
 			return null;
 		
-		System.out.println(v.getPastValue(pos));
+		//System.out.println(v.getPastValue(pos));
 		
 		if(pos == -1)
 			return v.getValue();

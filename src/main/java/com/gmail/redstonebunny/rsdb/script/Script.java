@@ -495,6 +495,13 @@ public class Script {
 				scriptError(n, "Unable to evaluate statement");
 				return false;
 			} else if(result == 0) {
+				Node next = n.getNextSibling();
+				if(next.getNodeName().equals("elseif")) {
+					return elementif(next);
+				} else if(next.getNodeName().equals("else")) {
+					return executeScriptSection(next);
+				}
+				
 				return true;
 			}
 			else {

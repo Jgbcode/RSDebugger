@@ -32,6 +32,8 @@ public class RSDB extends JavaPlugin {
 			d.disable();
 		}
 		
+		getServer().getScheduler().cancelTasks(this);
+		
 		debuggers.clear();
 		debuggers = null;
 	}
