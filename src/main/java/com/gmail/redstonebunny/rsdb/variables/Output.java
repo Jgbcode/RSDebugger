@@ -49,7 +49,8 @@ public abstract class Output extends Variable {
 		new BukkitRunnable() {
 			@Override
 			public void run() {
-				l.get(0).getBlock().setType(replace);
+				if(l.get(0).getBlock().getType().equals(Material.REDSTONE_BLOCK))
+					l.get(0).getBlock().setType(replace);
 			}
 		}.runTaskLater(rsdb, numTicks);
 		
