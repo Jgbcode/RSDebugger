@@ -106,6 +106,14 @@ public class Debugger {
 		}
 	}
 	
+	/*
+	 * 	Parameters:
+	 * 		String args[] - command arguments
+	 * 
+	 * 	Description:
+	 * 		Services "/rsdb stop" commands
+	 */
+	
 	private void commandStop(String args[]) {
 		if(run == null || run.isCancelled()) {
 			p.sendMessage(RSDB.prefix + "The clock is not running.");
@@ -281,14 +289,34 @@ public class Debugger {
 			return;
 		}
 		
-		if(args.length == 1) {
-			((Clock)variables.get("#CLOCK")).pulse(5);
-		} else if(args.length == 2) {
-			if(args[1].equals("--toggle")) {	
+		if(args.length >= 1) {
+			boolean toggle = false;
+			Integer up = 5;
+			
+			for(int i = 1; i < args.length; i++) {
+				if(args[i].startsWith("toggle=")) {
+					if(args[i].substring(7).equalsIgnoreCase("true"))
+						toggle = true;
+					else if(args[i].substring(7).equalsIgnoreCase("false"))
+						toggle = false;
+					else {
+						p.sendMessage(RSDB.prefix + "Toggle must be set to either true or false.");
+						return;
+					}
+				} else if(args[i].startsWith("up=")) {
+					up = Parser.stringToInt(args[i].substring(3));
+					if(up == null || up < 1) {
+						p.sendMessage(RSDB.prefix + "The time high of the clock must be an integer greater than 0.");
+						return;
+					}
+				}
+			}
+			
+			if(toggle) {
 				((Clock)variables.get("#CLOCK")).toggle();
-			} 
+			}
 			else {
-				p.sendMessage(RSDB.prefix + "Invalid format: Use \"/rsdb step\".");
+				((Clock)variables.get("#CLOCK")).pulse(up);
 			}
 		} 
 		else {
