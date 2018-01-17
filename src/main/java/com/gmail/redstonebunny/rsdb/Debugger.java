@@ -128,20 +128,46 @@ public class Debugger {
 			return;
 		}
 		
-		if(args.length != 2) {
+		if(args.length < 2) {
 			p.sendMessage(RSDB.prefix + "Invalid format. Use \"/rsdb run <ticks_per_clock>.");
 			return;
 		}
 		
 		final Integer ticks = Parser.stringToInt(args[1]);
 		
-		// DEBUG:
-		// System.out.println(args[1] + " - " + ticks);
-		
 		if(ticks == null || ticks < 2) {
 			p.sendMessage(RSDB.prefix + "Ticks per clock must be an integer greater than 1.");
 			return;
 		}
+		
+		Integer up = ticks / 2;
+		Integer stop = -1;
+		
+		for(int i = 2; i < args.length; i++) {
+			if(args[i].startsWith("up=")) {
+				up = Parser.stringToInt(args[i].substring(3));
+				if(up == null || up < 1) {
+					p.sendMessage(RSDB.prefix + "The time high of the clock must be an integer greater than 0.");
+					return;
+				} else if(up >= ticks) {
+					p.sendMessage(RSDB.prefix + "The time high of the clock must be less than the clock speed.");
+					return;
+				}
+			} else if(args[i].startsWith("stop=")) {
+				stop = Parser.stringToInt(args[i].substring(5));
+				if(stop == null) {
+					p.sendMessage(RSDB.prefix + "The stop time of the clock must be a valid integer.");
+					return;
+				}
+			}
+			else {
+				p.sendMessage(RSDB.prefix + "Unrecognized argument: " + args[i]);
+				return;
+			}
+		}
+		
+		final int upf = up;
+		final int stopf = stop;
 		
 		run = new BukkitRunnable() {
 			@Override
@@ -149,7 +175,11 @@ public class Debugger {
 				if(variables.get("#CLOCK") == null) {
 					p.sendMessage(RSDB.prefix + "No valid clock. Execution terminated.");
 					this.cancel();
-				} else if(!((Clock)variables.get("#CLOCK")).pulse(ticks/2)) {
+				} else if(variables.get("#CLOCK").getValue() >= stopf) {
+					p.sendMessage(RSDB.prefix + "Clock has reached " + stopf + ". Execution halted.");
+					this.cancel();
+				}
+				else if(!((Clock)variables.get("#CLOCK")).pulse(upf)) {
 					p.sendMessage(RSDB.prefix + "Execution halted.");
 					this.cancel();
 				}
